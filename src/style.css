@@ -1,0 +1,149 @@
+/* ==========================================================================
+   src/style.css
+   ESTILOS GLOBALES de la aplicación (se importan una sola vez en main.js).
+
+   Aquí va solo lo que afecta a TODA la web:
+     - las variables de color (paleta corporativa)
+     - la tipografía base
+     - los elementos comunes: body, títulos, tablas, botones, enlaces
+   Lo propio de cada pantalla va en el <style scoped> de su componente.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. VARIABLES CSS (custom properties).
+   Se declaran una vez en :root (la raíz del documento) y se usan en todo el
+   proyecto con var(--nombre). Si queremos cambiar el verde de la aplicación,
+   se cambia AQUÍ y cambia en todas partes: eso es consistencia de diseño.
+   -------------------------------------------------------------------------- */
+:root {
+  --verde-escuro: #1b6534;   /* cabecera, pie y títulos */
+  --verde-claro: #07c751;    /* detalles y hover */
+  --verde-boton: #057559;    /* botón de guardar */
+  --amarelo: #f9d342;        /* enlaces del pie y subrayado del menú activo */
+  --texto: #1f2933;          /* color normal del texto */
+  --texto-suave: #6b7280;    /* textos secundarios */
+  --borde: #d1d5db;          /* bordes de inputs y tablas */
+  --fondo: #f6f6f6;          /* fondo general de la página */
+  --branco: #ffffff;         /* fondo de las tarjetas y formularios */
+  --erro: #b3261e;           /* mensajes de error */
+
+  /* Tipografía base de toda la aplicación */
+  font-family: system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--texto);
+
+  /* Mejoras de nitidez del texto */
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* --------------------------------------------------------------------------
+   2. ELEMENTOS BASE
+   -------------------------------------------------------------------------- */
+body {
+  margin: 0;                 /* quita el margen que el navegador pone por defecto */
+  background: var(--fondo);
+}
+
+/* El div donde Vue monta la aplicación (ver index.html) */
+#app {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;    /* el padding no suma ancho extra */
+}
+
+/* Jerarquía visual de los títulos: tamaños que bajan de h1 a h5 */
+h1, h2, h3, h4, h5 {
+  color: var(--texto);
+  margin: 0 0 0.6rem;
+  line-height: 1.2;
+}
+
+h1 { font-size: 2rem; }
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.3rem; }
+h4 { font-size: 1.1rem; }
+h5 { font-size: 1rem; }
+
+p {
+  margin: 0 0 0.6rem;
+}
+
+/* Enlaces: sin subrayado, pero subrayados al pasar el ratón (feedback visual) */
+a {
+  color: var(--verde-escuro);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   3. ACCESIBILIDAD
+   El foco visible es obligatorio para quien navega con el teclado (tabulador):
+   siempre se tiene que ver dónde está situado.
+   -------------------------------------------------------------------------- */
+:focus-visible {
+  outline: 3px solid var(--verde-claro);
+  outline-offset: 2px;
+}
+
+/* Clase de ayuda: texto solo para lectores de pantalla (no se ve, pero se lee) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --------------------------------------------------------------------------
+   4. FORMULARIOS Y BOTONES (aspecto común en toda la aplicación)
+   -------------------------------------------------------------------------- */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;   /* heredan la tipografía general */
+  font-size: 1rem;
+}
+
+button {
+  cursor: pointer;        /* la manita indica que se puede pulsar */
+}
+
+/* Los campos en los que no se puede escribir se ven en gris */
+input[readonly],
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: #f1f1f1;
+  color: var(--texto-suave);
+}
+
+/* Mensajes de error de los formularios */
+.error {
+  color: var(--erro);
+  font-size: 0.9rem;
+}
+
+/* --------------------------------------------------------------------------
+   5. RESPONSIVE: en pantallas pequeñas bajamos un poco el tamaño de letra
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  :root {
+    font-size: 15px;
+  }
+
+  h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.35rem; }
+}

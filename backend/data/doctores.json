@@ -1,0 +1,102 @@
+[
+  {
+    "iddoc": "D001",
+    "nomedoc": "Xoán",
+    "apeldoc": "Castro Vilar",
+    "coledoc": "Si",
+    "maildoc": "xoan.castro@sanidadeteis.gal",
+    "movildoc": "611111111",
+    "espedoc": "Medicina de Familia",
+    "loddoc": true
+  },
+  {
+    "iddoc": "D002",
+    "nomedoc": "Marta",
+    "apeldoc": "Alonso Rey",
+    "coledoc": "Si",
+    "maildoc": "marta.alonso@sanidadeteis.gal",
+    "movildoc": "622222222",
+    "espedoc": "Cardiología",
+    "loddoc": true
+  },
+  {
+    "iddoc": "D003",
+    "nomedoc": "Luis",
+    "apeldoc": "Barreiro Nogueira",
+    "coledoc": "Si",
+    "maildoc": "luis.barreiro@sanidadeteis.gal",
+    "movildoc": "633333333",
+    "espedoc": "Pediatría",
+    "loddoc": true
+  },
+  {
+    "iddoc": "D004",
+    "nomedoc": "Carmen",
+    "apeldoc": "Deus Fontán",
+    "coledoc": "Si",
+    "maildoc": "carmen.deus@sanidadeteis.gal",
+    "movildoc": "644444444",
+    "espedoc": "Dermatología",
+    "loddoc": true
+  },
+  {
+    "iddoc": "D005",
+    "nomedoc": "Antón",
+    "apeldoc": "Estévez Pardo",
+    "coledoc": "Si",
+    "maildoc": "anton.estevez@sanidadeteis.gal",
+    "movildoc": "655555555",
+    "espedoc": "Traumatología y Cirugía Ortopédica",
+    "loddoc": true
+  },
+  {
+    "iddoc": "D006",
+    "nomedoc": "Lucía",
+    "apeldoc": "Ferreiro Lamas",
+    "coledoc": "Si",
+    "maildoc": "lucia.ferreiro@sanidadeteis.gal",
+    "movildoc": "666666666",
+    "espedoc": "Ginecología y Obstetricia",
+    "loddoc": true
+  },
+  {
+    "iddoc": "D007",
+    "nomedoc": "Brais",
+    "apeldoc": "Gómez Seoane",
+    "coledoc": "No",
+    "maildoc": "brais.gomez@sanidadeteis.gal",
+    "movildoc": "677777777",
+    "espedoc": "Urgencias",
+    "loddoc": true
+  },
+  {
+    "iddoc": "D008",
+    "nomedoc": "Iria",
+    "apeldoc": "Hermida Blanco",
+    "coledoc": "Si",
+    "maildoc": "iria.hermida@sanidadeteis.gal",
+    "movildoc": "688888888",
+    "espedoc": "Neurología",
+    "loddoc": true
+  },
+  {
+    "iddoc": "D009",
+    "nomedoc": "Pablo",
+    "apeldoc": "Iglesias Varela",
+    "coledoc": "Si",
+    "maildoc": "pablo.iglesias@sanidadeteis.gal",
+    "movildoc": "699999999",
+    "espedoc": "Oftalmología",
+    "loddoc": true
+  },
+  {
+    "iddoc": "D010",
+    "nomedoc": "Noa",
+    "apeldoc": "Jorge Couceiro",
+    "coledoc": "Si",
+    "maildoc": "noa.jorge@sanidadeteis.gal",
+    "movildoc": "610101010",
+    "espedoc": "Psiquiatría",
+    "loddoc": true
+  }
+]
