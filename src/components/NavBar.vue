@@ -20,6 +20,7 @@
         desplegable se cierre solo después de navegar en móvil.
       -->
       <li><RouterLink to="/" @click="isOpen = false">Inicio</RouterLink></li>
+      <li><RouterLink to="/servizos-medicos" @click="isOpen = false">Servizos médicos</RouterLink></li>
       <li><RouterLink to="/xestionpacientes" @click="isOpen = false">Pacientes</RouterLink></li>
       <li><RouterLink to="/xestion-doctores" @click="isOpen = false">Doctores</RouterLink></li>
       <li><RouterLink to="/xestion-citas" @click="isOpen = false">Citas</RouterLink></li>

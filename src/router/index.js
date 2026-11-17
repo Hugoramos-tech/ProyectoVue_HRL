@@ -10,6 +10,7 @@ import { createRouter, createWebHistory } from "vue-router";
 
 // Importamos todos los componentes que actúan como "páginas"
 import IniCio from '../components/IniCio.vue';
+import ServizosMedicos from '../components/ServizosMedicos.vue';
 import XestionPacientes from '../components/XestionPacientes.vue';
 import XestionDoctores from '../components/XestionDoctores.vue';
 import XestionCitas from '../components/XestionCitas.vue';
@@ -24,6 +25,7 @@ import NotFound from '../components/NotFound.vue';
 //   component -> el componente que se dibuja
 const routes = [
     { path: '/', name: 'IniCio', component: IniCio },
+    { path: '/servizos-medicos', name: 'ServizosMedicos', component: ServizosMedicos },
     { path: '/xestionpacientes', name: 'XestionPacientes', component: XestionPacientes },
     { path: '/xestion-doctores', name: 'XestionDoctores', component: XestionDoctores },
     { path: '/xestion-citas', name: 'XestionCitas', component: XestionCitas },

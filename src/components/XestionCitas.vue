@@ -90,8 +90,18 @@
       </div>
     </form>
 
-    <!-- Cabecera de la listaxe -->
-    <h4>📋 Listaxe de Citas</h4>
+    <!--
+      Ficha do paciente seleccionado. Só aparece se hai un paciente gardado no
+      store de Pinia, que é o que se garda ao darlle a ✏️ Editar en "Pacientes".
+    -->
+    <div v-if="pacienteStore.dnipac" class="ficha-paciente">
+      <p class="titulo-ficha">Paciente seleccionado</p>
+      <p><strong>DNI:</strong> {{ pacienteStore.dnipac }}</p>
+      <p><strong>Nome:</strong> {{ pacienteStore.nomepac }} {{ pacienteStore.apelpac }}</p>
+    </div>
+
+    <!-- Cabecera de la listaxe: leva o nome do paciente a continuación -->
+    <h4>📋 Listaxe de Citas<span v-if="pacienteStore.dnipac"> de {{ pacienteStore.nomepac }} {{ pacienteStore.apelpac }}</span></h4>
 
     <!-- Filtro reactivo: lo que escribamos aquí se filtra al instante gracias al computed -->
     <div class="fila fila-filtro">
@@ -115,8 +125,8 @@
       <button type="button" @click="exportarPDF">📄 PDF</button>
     </div>
 
-    <!-- v-if: la tabla solo se muestra si hay citas cargadas -->
-    <table v-if="citas.length > 0">
+    <!-- v-if: la tabla solo se muestra si hay un paciente seleccionado y tiene citas -->
+    <table v-if="pacienteStore.dnipac && citasFiltradas.length > 0">
       <thead>
         <tr>
           <th>#</th>
@@ -149,8 +159,13 @@
       </tbody>
     </table>
 
-    <!-- v-else: mensaje que aparece cuando la lista está vacía (o falla la conexión) -->
-    <p v-else>Non hai citas cargadas ou falla a conexión coa BBDD.</p>
+    <!-- v-else-if: mientras no se seleccione un paciente la listaxe sale vacía -->
+    <p v-else-if="!pacienteStore.dnipac">
+      Selecciona un paciente en "Pacientes" e dálle a ✏️ Editar para ver aquí as súas citas.
+    </p>
+
+    <!-- v-else: hay paciente seleccionado, pero no tiene ninguna cita -->
+    <p v-else>Este paciente non ten citas rexistradas.</p>
   </div>
 </template>
 
@@ -177,6 +192,14 @@ import { getDoctores } from "../api/doctores.js"
 import { alertaExito, alertaError, alertaInfo, alertaConfirmacion } from "../utils/alertas.js"
 import { exportarTablaPDF } from "../utils/informes.js"
 
+// Store de Pinia de pacientes (UD8). Aquí queda guardado el paciente que
+// seleccionamos en "Pacientes" al darle a ✏️ Editar, y así podemos leerlo
+// desde esta pestaña aunque sea otro componente distinto.
+import { usepacienteStore } from "../store/pacienteStore.js"
+
+// Creamos la INSTANCIA del store UNA SOLA VEZ, aquí en la zona de declaraciones.
+const pacienteStore = usepacienteStore()
+
 // Listas que se muestran en la pantalla
 const citas = ref([])       // almacena el listado de citas y sus cambios
 const pacientes = ref([])   // para el select de pacientes
@@ -202,12 +225,22 @@ const novaCita = reactive({
   estado: "pendente"   // valor por defecto
 })
 
-// Computed: devuelve las citas que cumplen el filtro de estado Y el filtro de texto.
-// Al ser computed, se recalcula automáticamente cuando cambia filtroEstado o filtroTexto.
+// Computed: devuelve las citas DEL PACIENTE SELECCIONADO que además cumplen
+// el filtro de estado Y el filtro de texto.
+// Al ser computed, se recalcula automáticamente cuando cambia filtroEstado,
+// filtroTexto o el paciente guardado en el store.
 const citasFiltradas = computed(() => {
+  // Mientras no haya un paciente seleccionado, la listaxe sale VACÍA.
+  if (!pacienteStore.dnipac) return []
+
   const texto = filtroTexto.value.trim().toLowerCase()
 
   return citas.value.filter((c) => {
+    // Solo las citas de ese paciente. El backend devuelve pacienteId ya
+    // "poblado" con los datos del paciente, así que comparamos por el DNI.
+    const ehDoPaciente = c.pacienteId && c.pacienteId.dnipac === pacienteStore.dnipac
+    if (!ehDoPaciente) return false
+
     // Si el select del estado está vacío ("Todos") pasan todas las citas
     const coincideEstado = filtroEstado.value === "" || c.estado === filtroEstado.value
 
@@ -619,6 +652,26 @@ h4 {
   font-weight: 600;
   background-color: #07c751;
   color: white;
+}
+
+/* Ficha del paciente seleccionado, encima de la listaxe de citas */
+.ficha-paciente {
+  background: #ffffff;
+  border-left: 0.3rem solid #07c751;
+  border-radius: 0.5rem;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 0.1rem 0.4rem rgba(0, 0, 0, 0.08);
+}
+
+.ficha-paciente p {
+  margin: 0.15rem 0;
+}
+
+.titulo-ficha {
+  color: #1b6534;
+  font-weight: bold;
+  margin-bottom: 0.4rem;
 }
 
 @media (max-width: 768px) {
