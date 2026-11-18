@@ -44,10 +44,10 @@ En `backend/rutas/citas.rutas.js`, busca estas dos líneas dentro de `router.get
 
 ## Paso 2 · Permitir leer la cabecera
 
-El navegador solo deja leer cabeceras de otro origen si el servidor las declara. En `backend/server.js`, busca la línea `app.use(cors()) // permite peticiones desde otro origen (ej. el Vue en localhost:5173)` y **sustitúyela** por:
+El navegador solo deja leer cabeceras de otro origen si el servidor las declara. En `backend/server.js`, busca la línea `app.use(cors());` y **sustitúyela** por:
 
 ```js
-app.use(cors({ exposedHeaders: ['X-Total-Count'] })) // permite peticiones desde otro origen
+app.use(cors({ exposedHeaders: ["X-Total-Count"] }));
 ```
 
 **Reinicia el backend.**

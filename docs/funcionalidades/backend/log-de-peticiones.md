@@ -16,7 +16,7 @@ Un **middleware** es una función que se ejecuta antes de las rutas. Recibe `req
 
 ## Paso 1 · El middleware
 
-En `backend/server.js`, busca la línea `app.use(express.json()) // parsea el cuerpo JSON de las peticiones` y pega esto **justo encima**:
+En `backend/server.js`, busca la línea `app.use(express.json());` y pega esto **justo encima**:
 
 ```js
 // Log de cada petición: método, URL, código de respuesta y milisegundos

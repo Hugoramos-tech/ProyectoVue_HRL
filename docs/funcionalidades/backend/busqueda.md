@@ -33,7 +33,7 @@ const patron = (texto) =>
 
 ## Paso 2 · El filtro en la ruta
 
-En `backend/rutas/pacientes.rutas.js`, busca la línea `const pacientes = await Paciente.find().sort({ apelpac: 1, nomepac: 1 })` y **sustitúyela** por:
+En `backend/rutas/pacientes.rutas.js`, busca la línea `const pacientes = await Paciente.find().lean()` y **sustitúyela** por:
 
 ```js
     const filtro = {}
@@ -43,7 +43,7 @@ En `backend/rutas/pacientes.rutas.js`, busca la línea `const pacientes = await 
         const texto = new RegExp(patron(req.query.q), 'i')
         filtro.$or = [{ nomepac: texto }, { apelpac: texto }, { dnipac: texto }]
     }
-    const pacientes = await Paciente.find(filtro).sort({ apelpac: 1, nomepac: 1 })
+    const pacientes = await Paciente.find(filtro).lean()
 ```
 
 **Reinicia el backend.**

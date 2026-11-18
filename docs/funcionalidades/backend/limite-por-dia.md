@@ -12,25 +12,28 @@ Un doctor no puede tener más de 8 citas en un mismo día. Al llegar al máximo,
 
 ## Paso 1 · La comprobación
 
-En `backend/rutas/citas.rutas.js`, busca la línea `router.post('/', async (req, res) => {` y pega esto **justo debajo**:
+En `backend/rutas/citas.rutas.js`, busca la línea `        const cita = await Cita.create(datos)` (está dentro del `router.post`) y pega esto **justo encima**:
 
 ```js
     // Máximo de citas por doctor y día
     const MAX_CITAS_DIA = 8
     const ocupadas = await Cita.countDocuments({
-        doctorId: req.body.doctorId,
-        fecha: req.body.fecha,
-        estado: { $ne: 'cancelada' },
+        // datos es el objeto que ya ha filtrado datosPermitidos() unas lineas arriba
+        doctorId: datos.doctorId,
+        fecha: datos.fecha,
+        // $ne = "distinto de": las canceladas no ocupan hueco
+        estado: { $ne: "cancelada" },
     })
     if (ocupadas >= MAX_CITAS_DIA) {
-        return res.status(409).json({ error: 'O doctor xa ten o máximo de citas ese día' })
+        // 409 Conflict: la peticion es correcta, pero choca con una regla de negocio
+        return res.status(409).json({ mensaje: "El doctor ya tiene el maximo de citas ese dia" })
     }
 
 ```
 
-Qué hace: cuenta las citas de ese doctor ese día que no estén canceladas. Si ya hay 8 o más, corta con `409` (conflicto). El front enseña el mensaje porque `gardarCita` usa `mensajeError(e)`.
+Qué hace: cuenta las citas de ese doctor ese día que no estén canceladas. Si ya hay 8 o más, corta con `409`. La web enseña el texto porque `guardarCita()` de `Citas.vue` pasa el error por `mensajeError(...)`, que lee `error.response.data.mensaje`. Por eso la clave tiene que llamarse `mensaje` y no `error`: es la que usa todo tu backend.
 
-**Ojo:** el límite se comprueba también cuando la cita que llega es una cancelada: en un día lleno, no se puede crear ni una cancelada. Si no quieres eso, envuelve la comprobación en `if (req.body.estado !== 'cancelada') { ... }`.
+**Ojo:** el límite se comprueba también cuando la cita que llega es una cancelada: en un día lleno no se podría crear ni una cancelada. Si no quieres eso, envuelve la comprobación en `if (datos.estado !== "cancelada") { ... }`.
 
 **Reinicia el backend.**
 

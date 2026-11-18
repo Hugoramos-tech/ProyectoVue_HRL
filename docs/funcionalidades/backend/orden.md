@@ -12,7 +12,7 @@
 
 ## Paso 1 · La ruta
 
-En `backend/rutas/citas.rutas.js`, busca la línea `const citas = await Cita.find(filtro).sort({ fecha: 1, hora: 1 })` (dentro de `router.get('/', ...)`) y **sustitúyela** por:
+En `backend/rutas/citas.rutas.js`, busca la línea `const citas = await Cita.find(filtros).sort({ fecha: 1, hora: 1 }).lean()` y **sustitúyela** por:
 
 ```js
     // Solo se puede ordenar por estos campos: sin la lista, cualquiera ordenaría por lo que quisiera
@@ -22,10 +22,10 @@ En `backend/rutas/citas.rutas.js`, busca la línea `const citas = await Cita.fin
     const sentido = req.query.dir === 'desc' ? -1 : 1
     // Los corchetes [campo] usan el VALOR de la variable como nombre de la propiedad.
     // _id desempata, siempre en el mismo orden.
-    const citas = await Cita.find(filtro).sort({ [campo]: sentido, _id: 1 })
+    const citas = await Cita.find(filtros).sort({ [campo]: sentido, _id: 1 }).lean()
 ```
 
-Si ya hiciste la receta de **paginación**, esa línea será `const consulta = Cita.find(filtro).sort({ fecha: 1, hora: 1 })`: sustitúyela igualmente por el bloque de arriba, pero cambiando la última línea por `const consulta = Cita.find(filtro).sort({ [campo]: sentido, _id: 1 })`.
+Si ya hiciste la receta de **paginación**, esa línea será `const consulta = Cita.find(filtros).sort({ fecha: 1, hora: 1 })`: sustitúyela igualmente por el bloque de arriba, pero cambiando la última línea por `const consulta = Cita.find(filtros).sort({ [campo]: sentido, _id: 1 })`.
 
 **Reinicia el backend.**
 

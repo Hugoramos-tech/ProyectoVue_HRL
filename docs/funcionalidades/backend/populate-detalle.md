@@ -14,17 +14,19 @@
 |---|---|
 | `backend/rutas/citas.rutas.js` | La ruta nueva y un import |
 
-## Paso 1 · Importar el modelo de paciente
+## Paso 1 · Los imports
 
-En `backend/rutas/citas.rutas.js`, busca la línea `import Cita from '../modelos/Cita.js'` y pega **justo debajo**:
-
-```js
-import Paciente from '../modelos/Paciente.js'
-```
+**No hay que tocar nada.** `backend/rutas/citas.rutas.js` ya importa los tres modelos que
+hacen falta (`Cita`, `Doctor` y `Paciente`): los usa `validarRelaciones()` para comprobar
+que la cita apunta a datos que existen de verdad.
 
 ## Paso 2 · La ruta
 
-En `backend/rutas/citas.rutas.js`, busca el comentario `// Una cita por su id.` y pega esto **justo encima**. Tiene que ir antes de `/:id`: si no, Express tomaría «detalle» por un id.
+En `backend/rutas/citas.rutas.js`, busca la línea `// PUT /api/citas/:id: actualiza los campos permitidos de una cita existente.` y pega esto **justo encima**.
+
+**El orden importa:** Express prueba las rutas de arriba abajo, así que `/detalle` tiene que
+estar antes de cualquier ruta `/:id`. Si la pones después, Express entiende que «detalle» es
+un id, intenta convertirlo en `ObjectId` y responde `400`.
 
 ```js
 // Citas con el doctor y el paciente dentro
