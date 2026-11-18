@@ -1,249 +1,256 @@
-# HugoRamosLopez_Vue — XestiónApp (Sanidade Teis)
+# Proyecto de gestión clínica
 
-Proyecto de **Deseño de Interfaces Web — 2º DAW**
-Autor: **Hugo Ramos López**
+Este repositorio está pensado como una aplicación de gestión clínica con arquitectura frontend/backend clara y reutilizable:
 
-Aplicación web de gestión de una clínica: **pacientes, doctores y citas**.
-Front-end con **Vue 3 + Vite**, back-end con **Express**, base de datos
-**MongoDB** dentro de un contenedor de **Docker** (se consulta con **MongoDB
-Compass**).
+- `src/components/` contiene las pantallas y componentes de Vue.
+- `src/api/` encapsula las llamadas HTTP con Axios.
+- `src/router/` decide qué pantalla se muestra según la ruta.
+- `src/store/` guarda estado global compartido.
+- `src/utils/` reúne utilidades reutilizables.
+- `backend/` contiene la API REST con Express y modelos Mongoose.
+- `backend/data/` incluye JSON estáticos para municipios y especialidades.
 
----
+La idea principal del proyecto es que cualquier nueva pantalla se pueda construir siguiendo una secuencia repetible:
 
-## 1. Arquitectura
+1. definir la entidad y sus campos,
+2. crear el modelo en backend,
+3. crear la ruta API,
+4. crear el servicio frontend para consumirla,
+5. copiar la plantilla base del componente,
+6. montar la ruta en el router,
+7. añadir el acceso desde el menú.
 
-```
-Navegador  (Vue 3 + Vite)        http://localhost:5173
-     |  axios (peticiones HTTP)
-     v
-API REST   (Express + Mongoose)  http://localhost:3000/api
-     |  mongoose
-     v
-MongoDB    (contenedor Docker)   mongodb://localhost:27017  -> base de datos "bbdd"
-```
+## 1. Cómo arrancar la aplicación
 
----
+1. Instala dependencias:
+   ```bash
+   npm install
+   ```
+2. Levanta MongoDB:
+   ```bash
+   docker compose up -d
+   ```
+3. Crea un `.env` con al menos:
+   ```env
+   MONGO_URI=mongodb://localhost:27017/clinica
+   PORT=3000
+   ```
+4. Arranca la aplicación:
+   ```bash
+   npm run start
+   ```
+5. Accede a la app desde:
+   ```text
+   http://localhost:5173
+   ```
 
-## 2. Puesta en marcha (orden EXACTO)
-
-### Paso 1 — Levantar la base de datos con Docker
-
-Desde la carpeta del proyecto:
-
-```bash
-docker compose up -d      # levanta MongoDB en segundo plano
-docker compose ps         # comprobar que el contenedor "mongodb" está UP
-```
-
-> Si `docker` no se reconoce, hay que instalar **Docker Desktop** y arrancarlo
-> antes (debe verse la ballena en la barra de tareas).
-
-### Paso 2 — Instalar las dependencias (solo la primera vez)
-
-```bash
-npm install
-```
-
-Descarga en `node_modules/` todo lo que indica el `package.json`. Esa carpeta
-**no se entrega ni se sube a GitHub**: se regenera con este comando.
-
-### Paso 2b — Variables de entorno (opcional)
-
-El fichero `.env` lleva contraseñas, así que no se sube al repositorio. Si al
-descargar el proyecto no está, se crea copiando la plantilla:
-
-```bash
-copy .env.example .env     # Windows
-cp .env.example .env       # Linux / Mac
+La API estará disponible en:
+```text
+http://localhost:3000/api
 ```
 
-No es imprescindible: si falta el `.env`, `backend/server.js` y `backend/seed.js`
-usan por defecto la misma conexión que crea el `docker-compose.yaml`
-(`mongodb://admin:abc123@localhost:27017/bbdd?authSource=admin`), así que el
-proyecto arranca igualmente. Solo hace falta tocarlo si se usa otro usuario,
-otra contraseña, otro puerto u otro nombre de base de datos.
+## 2. Estructura clave del proyecto
 
-### Paso 3 — Cargar datos de ejemplo (opcional pero recomendado)
+### Frontend
 
-```bash
-npm run seed
+- `src/components/PlantillaComponente.vue`: plantilla de referencia para crear nuevas pantallas CRUD.
+- `src/App.vue`: estructura global con `NavBar`, `router-view` y `FooTer`.
+- `src/router/index.js`: mapea rutas con componentes.
+- `src/main.js`: monta la aplicación Vue, Pinia y router.
+
+### Backend
+
+- `backend/server.js`: arranca Express, conecta MongoDB y monta las rutas.
+- `backend/modelos/`: definiciones Mongoose.
+- `backend/rutas/`: endpoints HTTP para cada entidad.
+- `backend/data/`: fichas estáticas usadas por municipios y especialidades.
+
+### API del cliente
+
+- `src/api/*.js`: funciones para pedir/guardar/borrar datos.
+- Cada módulo de API centraliza las rutas y el manejo de errores.
+- El componente no tiene que construir URLs en el template.
+
+## 3. Patrón recomendado para crear una pantalla nueva
+
+El flujo correcto es siempre este:
+
+1. Diseñar la entidad y los campos.
+2. Crear el modelo Mongoose.
+3. Crear el router Express.
+4. Montar la ruta en el servidor.
+5. Crear la capa `src/api/`.
+6. Copiar `PlantillaComponente.vue` y adaptarlo.
+7. Cargar datos con `onMounted()`.
+8. Añadir la ruta nueva al router.
+9. Añadir el enlace al menú.
+10. Validar con `npm run build`.
+
+## 4. Qué usar como base para copiar
+
+La referencia principal del proyecto es:
+
+- [src/components/PlantillaComponente.vue](./src/components/PlantillaComponente.vue)
+- [src/components/XestionPacientes.vue](./src/components/XestionPacientes.vue): CRUD conectado a su API.
+- [src/components/XestionDoctores.vue](./src/components/XestionDoctores.vue): CRUD con selector de catálogo.
+- [src/components/Citas.vue](./src/components/Citas.vue): pantalla que combina API, relaciones y selecciones compartidas.
+
+La plantilla es un catálogo visual y su lista de ejemplo solo vive en memoria. Para ver un CRUD que persiste en MongoDB, compara pacientes o doctores con sus módulos `src/api/`, modelos y rutas de `backend/`.
+
+La plantilla muestra un patrón completo de:
+
+- formulario de alta/modificación,
+- validación de inputs,
+- filtrado de la lista,
+- carga de datos,
+- edición,
+- borrado,
+- visualización de estados,
+- mensajes de error,
+- uso de Tailwind.
+
+No hace falta inventar una estructura nueva: se puede replicar adaptando los nombres.
+
+### Datos compartidos y persistentes no son lo mismo
+
+- `ref()` y `reactive()` guardan estado local mientras vive el componente.
+- Pinia (`src/store/`) comparte selecciones entre componentes durante la sesión abierta.
+- MongoDB guarda registros persistentes, consultados por medio de Express y `src/api/`.
+
+Ejemplos reales de este repositorio:
+
+- [src/store/doctorStore.js](./src/store/doctorStore.js) y [src/store/pacienteStore.js](./src/store/pacienteStore.js) muestran selección y limpieza de datos compartidos.
+- [src/components/Citas.vue](./src/components/Citas.vue) lee esos stores y usa el DNI del paciente y el identificador del doctor para filtrar y guardar citas.
+- [backend/modelos/Cita.js](./backend/modelos/Cita.js) y [backend/rutas/citas.rutas.js](./backend/rutas/citas.rutas.js) muestran el DNI del paciente y la comprobación de las relaciones de la cita.
+
+Pinia no sustituye MongoDB: los valores del store se pierden al recargar, salvo que se programe persistencia; este repositorio no la configura.
+
+## 5. Cómo pensar un nuevo componente
+
+Antes de programar, responde a estas preguntas:
+
+- ¿Qué entidad necesito guardar?
+- ¿Qué campos son obligatorios?
+- ¿Qué campos son opcionales?
+- ¿Necesito cargar datos desde la API o son estáticos?
+- ¿Necesito filtros, búsqueda, edición o solo visualización?
+- ¿Cuál es la clave única del registro? (ej. `_id`, DNI, email, etc.)
+
+Ejemplo mínimo:
+
+```js
+const entidad = {
+  nombre: "",
+  descripcion: "",
+  activo: true
+}
 ```
 
-Inserta 20 pacientes, 10 doctores y 5 citas de ejemplo.
-**Ojo:** vacía antes esas tres colecciones.
+La clave es mantener nombres idénticos en:
 
-### Paso 4 — Arrancar la aplicación
+- modelo Mongoose,
+- rutas Express,
+- módulo `src/api/`,
+- `reactive()` o `ref()` del componente,
+- `v-model` del template.
 
-```bash
-npm start      # arranca a la vez el front (Vite) y el back (Express)
-```
+## 6. Regla de oro: mantener consistencia entre capas
 
-- Front: <http://localhost:5173>
-- API:   <http://localhost:3000/api>
+Si defines un campo como `nombre`, no lo llames luego `nom`, `titulo`, `nombrePaciente` en distintas capas. Eso rompe la sincronización del formulario.
 
-Otros comandos:
+Ejemplo correcto:
 
-| Comando           | Qué hace                                  |
-|-------------------|-------------------------------------------|
-| `npm run dev`     | solo el front (Vite)                      |
-| `npm run backend` | solo la API (Express)                     |
-| `npm run seed`    | carga los datos de ejemplo en MongoDB     |
-| `npm run build`   | compila la versión de producción (`dist`) |
-| `npm run preview` | ver la versión compilada                  |
+- backend: `nombre`
+- API: `saveEntidad({ nombre })`
+- componente: `const form = reactive({ nombre: "" })`
+- template: `v-model="form.nombre"`
 
-### Paso 5 — Ver los datos en MongoDB Compass
+## 7. Guías de creación paso a paso
 
-Cadena de conexión:
+Las guías más útiles para el examen están en:
 
-```
-mongodb://admin:abc123@localhost:27017/?authSource=admin
-```
+- [GUIA-CREAR-COMPONENTE.md](./GUIA-CREAR-COMPONENTE.md)
+- [GUIA-EXAMEN-COMPONENTES.md](./GUIA-EXAMEN-COMPONENTES.md)
 
-Base de datos **`bbdd`** → colecciones **`pacientes`**, **`doctores`** y **`citas`**.
+La primera es la guía general del proyecto y la segunda es una versión ultra guiada, pensada para resolver un examen sin salir del repositorio ni depender de información externa.
 
-También se puede abrir Compass ya conectado desde la terminal:
+Allí se explica detalladamente:
 
-```powershell
-& "C:\Program Files\MongoDB Compass\MongoDBCompass.exe" "mongodb://admin:abc123@localhost:27017/?authSource=admin"
-```
+- cómo diseñar la entidad,
+- crear el modelo MongoDB,
+- montar rutas del backend,
+- crear el módulo `src/api/`,
+- copiar la plantilla,
+- enlazar el componente al router,
+- añadirlo al menú,
+- usar validación y carga de datos,
+- comprobar la compilación final.
+- escoger entre copiar la plantilla o adaptar un CRUD existente,
+- distinguir memoria local, Pinia y datos persistidos en MongoDB,
+- seguir una relación de documentos desde el componente hasta las rutas.
 
-> Docker Desktop tiene que estar arrancado (icono de la ballena). Si una
-> terminal abierta de antes no reconoce el comando `docker`, basta con
-> cerrarla y abrir otra.
+## 8. Qué hace que un componente sea reutilizable
 
----
+Para que un componente se pueda replicar fácilmente sin ayuda externa:
 
-## 3. Estructura del proyecto
+- usa `ref` y `reactive` con nombres claros,
+- documenta cada bloque importante con comentarios,
+- separa la lógica del HTML,
+- centraliza llamadas HTTP en `src/api/`,
+- usa `onMounted()` para carga inicial,
+- usa `computed` para listas filtradas,
+- muestra errores con `error.value` en vez de ocultarlos,
+- conserva un patrón consistente de `guardar`, `editar`, `eliminar`, `limpiar`.
 
-```
-HugoRamosLopez_Vue/
-├── docker-compose.yaml        # contenedor de MongoDB
-├── .env                       # PORT y MONGO_URI (no se sube a GitHub)
-├── index.html                 # única página (SPA)
-├── vite.config.js
-├── backend/                   # ---------- SERVIDOR ----------
-│   ├── server.js              # arranque de Express + conexión a MongoDB
-│   ├── seed.js                # carga inicial de datos (npm run seed)
-│   ├── modelos/               # esquemas de Mongoose
-│   │   ├── Paciente.js
-│   │   ├── Doctor.js
-│   │   └── Cita.js
-│   ├── rutas/                 # endpoints de la API REST (CRUD)
-│   │   ├── pacientes.rutas.js
-│   │   ├── doctores.rutas.js
-│   │   └── citas.rutas.js
-│   └── data/                  # catálogos y datos de ejemplo (JSON)
-│       ├── municipios.json
-│       ├── especialidades.json
-│       ├── pacientes.json
-│       └── doctores.json
-└── src/                       # ---------- CLIENTE (Vue) ----------
-    ├── main.js                # crea la app, Pinia y el router
-    ├── App.vue                # componente raíz (NavBar + router-view + FooTer)
-    ├── style.css              # estilos globales
-    ├── router/index.js        # tabla de rutas
-    ├── api/                   # llamadas a la API con axios
-    │   ├── pacientes.js
-    │   ├── doctores.js
-    │   ├── citas.js
-    │   ├── municipios.js
-    │   └── especialidades.js
-    ├── store/                 # Pinia (estado compartido)
-    │   ├── pacienteStore.js
-    │   └── doctorStore.js
-    ├── utils/
-    │   ├── alertas.js         # SweetAlert2 (UD6)
-    │   └── informes.js        # informes PDF con jsPDF (UD7)
-    └── components/
-        ├── NavBar.vue
-        ├── FooTer.vue
-        ├── IniCio.vue
-        ├── XestionPacientes.vue
-        ├── XestionDoctores.vue
-        ├── XestionCitas.vue
-        ├── SobreNos.vue
-        ├── AvisoLegal.vue
-        ├── PoliticaPrivacidad.vue
-        ├── NotFound.vue
-        └── HelloWorld.vue     # ejemplo de reactividad de la UD2
-```
+## 9. Buenas prácticas del proyecto
 
----
+- El template debe centrarse en la interfaz, no en la lógica de negocio.
+- Las llamadas a la API se hacen en funciones del script, no directamente en el template.
+- Si hay un selector dependiente, carga el siguiente según el valor previo.
+- Si un botón no envía formulario, usa `type="button"`.
+- Si hay edición, activa `editando` para cambiar texto del botón y lógica.
+- Si la base de datos falla, devuelve errores claros por HTTP y manejalos en el componente.
 
-## 4. Rutas de la aplicación (vue-router)
+## 10. Checklist antes de dar un componente por validado
 
-| URL                     | Componente        | Qué muestra                  |
-|-------------------------|-------------------|------------------------------|
-| `/`                     | IniCio            | portada                      |
-| `/xestionpacientes`     | XestionPacientes  | CRUD de pacientes            |
-| `/xestion-doctores`     | XestionDoctores   | CRUD de doctores             |
-| `/xestion-citas`        | XestionCitas      | CRUD de citas                |
-| `/sobrenos`             | SobreNos          | acerca de                    |
-| `/avisolegal`           | AvisoLegal        | aviso legal                  |
-| `/politica-privacidad`  | PoliticaPrivacidad| política de privacidad       |
-| cualquier otra          | NotFound          | error 404                    |
+- ¿Existe modelo y ruta del backend?
+- ¿La ruta está montada en `backend/server.js`?
+- ¿La API del frontend usa la misma URL y nombres de campos?
+- ¿El template tiene `@submit.prevent` en el formulario?
+- ¿Los inputs están enlazados con `v-model` a variables del script?
+- ¿La lista usa `v-for` con `:key`?
+- ¿La carga se realiza en `onMounted()`?
+- ¿Los mensajes de error aparecen en UI?
+- ¿La ruta está registrada en `src/router/index.js`?
+- ¿El componente se puede entrar desde el menú?
+- ¿Compila con `npm run build`?
 
----
+## 11. Recomendaciones extra para crear componentes nuevos sin IA ni documentación externa
 
-## 5. Endpoints de la API REST
+Estas son prácticas que ayudan a crear componentes nuevos a mano:
 
-| Método | Ruta                                       | Qué hace                         |
-|--------|--------------------------------------------|----------------------------------|
-| GET    | `/api/pacientes`                           | todos los pacientes              |
-| GET    | `/api/pacientes/:dni`                      | un paciente por DNI              |
-| POST   | `/api/pacientes`                           | crear paciente                   |
-| PUT    | `/api/pacientes/:dni`                      | modificar paciente               |
-| DELETE | `/api/pacientes/:dni`                      | borrar paciente                  |
-| GET    | `/api/doctores`                            | todos los doctores               |
-| GET    | `/api/doctores/:iddoc`                     | un doctor por ID                 |
-| GET    | `/api/doctores/especialidade/:espedoc`     | doctores de una especialidad     |
-| POST   | `/api/doctores`                            | crear doctor                     |
-| PUT    | `/api/doctores/:iddoc`                     | modificar doctor                 |
-| DELETE | `/api/doctores/:iddoc`                     | borrar doctor                    |
-| GET    | `/api/citas`                               | todas las citas (con populate)   |
-| GET    | `/api/citas/:id`                           | una cita por `_id`               |
-| POST   | `/api/citas`                               | crear cita                       |
-| PUT    | `/api/citas/:id`                           | modificar cita                   |
-| DELETE | `/api/citas/:id`                           | borrar cita                      |
-| GET    | `/api/municipios`                          | provincias y municipios (JSON)   |
-| GET    | `/api/especialidades`                      | especialidades médicas (JSON)    |
+1. Empieza por la entidad, no por el HTML.
+   - Haz una lista de campos y decide cuál es obligatorio.
+2. Construye primero el objeto del formulario.
+   - Si `reactive({ ... })` funciona, el template será más fácil.
+3. Haz primero el bloque de la plantilla con los campos principales.
+   - Después añade la tabla con v-for.
+4. Añade la carga inicial antes de la lógica de edición.
+5. Valida cada campo con una función pequeña y reutilizable.
+6. Define una sola fuente de verdad para los datos.
+   - Si cambias un nombre, cambia también los nombres en backend y API.
+7. Mantén la API y el componente desacoplados.
+8. Si algo se repite en varios componentes, conviértelo en una utilidad o componente más pequeño.
+9. Usa comentarios de contexto, no comentarios redundantes.
+   - Comenta lo que no se ve a simple vista, como por ejemplo un `onMounted()`, un filtro o una validación.
+10. Revisa el código como si otra persona tuviera que entenderlo en una sola pasada.
 
----
+## 12. Archivos básicos para referencia rápida
 
-## 6. Modelos de datos
+- [src/components/PlantillaComponente.vue](./src/components/PlantillaComponente.vue)
+- [src/router/index.js](./src/router/index.js)
+- [backend/server.js](./backend/server.js)
+- [src/api/pacientes.js](./src/api/pacientes.js)
+- [backend/modelos/Paciente.js](./backend/modelos/Paciente.js)
 
-**Paciente** → `dnipac`, `nomepac`, `apelpac`, `nacipac`, `mailpac`, `dirpac`,
-`movilpac`, `propac`, `munipac`, `lodpac`
-
-**Doctor** → `iddoc`, `nomedoc`, `apeldoc`, `coledoc` ("Si"/"No"), `maildoc`,
-`movildoc`, `espedoc`, `loddoc`
-
-**Cita** → `pacienteId` (ref Paciente), `doctorId` (ref Doctor), `fecha`,
-`hora`, `motivo`, `observacions`, `estado` (pendente / confirmada /
-cancelada / realizada)
-
----
-
-## 7. Contenidos del módulo aplicados
-
-- **UD1** Vite, estructura del proyecto, componentes `.vue`.
-- **UD2** Reactividad (`ref`, `reactive`, `computed`), ciclo de vida
-  (`onMounted`) y directivas (`v-model`, `v-if`, `v-for`, `v-on`, `v-bind`).
-- **UD3** Enrutamiento con vue-router y comunicación entre componentes.
-- **UD4** CRUD completo y consumo de API REST con axios + Express + Mongoose.
-- **UD5** Diseño de interfaces (flexbox, media queries, responsive).
-- **UD6** Avisos con SweetAlert2 (`src/utils/alertas.js`).
-- **UD7** Informes PDF con jsPDF (`src/utils/informes.js`).
-- **UD8** Estado centralizado con Pinia (`src/store/`).
-
----
-
-## 8. Problemas frecuentes
-
-| Síntoma | Causa y solución |
-|---------|------------------|
-| "Non hai ... cargados" en todas las listas | La API no responde: comprobar que `npm start` levantó Express y que el contenedor de Mongo está arriba (`docker compose ps`). |
-| `Error al conectar con MongoDB` en la consola | El contenedor no está levantado → `docker compose up -d`. |
-| El puerto 3000 está ocupado | Cambiar `PORT` en `.env` y la URL en `src/api/*.js`. |
-| Compass no conecta | Usar `mongodb://admin:abc123@localhost:27017/?authSource=admin`. |
-| Cambios en `.env` que no se aplican | Hay que reiniciar el backend (dotenv solo lo lee al arrancar). |
+La forma más segura de crear un componente nuevo en este proyecto es copiar la plantilla, cambiar el nombre de la entidad y seguir exactamente el mismo patrón de flujo: datos → backend → API → componente → router → menú.

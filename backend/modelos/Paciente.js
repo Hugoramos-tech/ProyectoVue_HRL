@@ -1,35 +1,26 @@
-// ===========================================================================
-//  backend/modelos/Paciente.js
-//
-//  Un MODELO de Mongoose describe cómo son los documentos de una colección
-//  de MongoDB (qué campos tienen y de qué tipo son) y nos da los métodos
-//  para trabajar con ellos: find(), findOne(), save(), findOneAndUpdate()...
-// ===========================================================================
-
 import mongoose from "mongoose";
 
-// El esquema (schema) es la "plantilla" de un paciente.
-// required: true  -> el campo es obligatorio
-// required: false -> el campo es opcional
-const pacienteSchema = new mongoose.Schema(
-    {
-        dnipac: { type: String, required: true, unique: true }, // DNI: no se puede repetir
-        nomepac: { type: String, required: true },   // nombre
-        apelpac: { type: String, required: true },   // apellidos
-        nacipac: { type: String, required: false },  // fecha de nacimiento (aaaa-mm-dd)
-        mailpac: { type: String, required: false },  // correo electrónico
-        dirpac: { type: String, required: false },   // dirección postal
-        movilpac: { type: String, required: true },  // teléfono móvil
-        propac: { type: String, required: false },   // provincia
-        munipac: { type: String, required: false },  // municipio
-        lodpac: { type: Boolean, required: true }    // aceptó la política de privacidad
-    },
-
-    {
-        collection: "pacientes", // nombre EXACTO de la colección en MongoDB
-        timestamps: true         // añade createdAt y updatedAt automáticamente
-    }
+// Esquema de los campos personales y de contacto que almacena cada paciente.
+const PacienteSchema = new mongoose.Schema(
+  {
+    // Datos principales que identifican al paciente dentro de la aplicacion.
+    nomepac: { type: String, required: true },
+    dnipac: { type: String, required: true },
+    apelpac: { type: String, required: true },
+    // Datos complementarios; direccion, provincia y municipio pueden faltar.
+    nacipac: { type: String, required: false },
+    mailpac: { type: String, required: false },
+    movilpac: { type: String, required: true },
+    dirpac: { type: String, required: false },
+    propac: { type: String, required: false },
+    munipac: { type: String, required: false },
+    // Conserva si se acepto el aviso de privacidad antes del alta.
+    lopdpac: { type: Boolean, required: true },
+  },
+  {
+    collection: "pacientes",
+  },
 );
 
-// Exportamos el modelo ya construido para usarlo en las rutas.
-export default mongoose.model("Paciente", pacienteSchema);
+// Exporta el modelo usado por las rutas de pacientes.
+export default mongoose.model("Paciente", PacienteSchema);

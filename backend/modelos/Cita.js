@@ -1,43 +1,40 @@
-// ===========================================================================
-//  backend/modelos/Cita.js
-//  Plantilla (schema) de los documentos de la colección "citas".
-//
-//  Una cita RELACIONA un paciente con un doctor. En vez de copiar sus datos,
-//  guardamos su _id con "ref": es la forma que tiene MongoDB/Mongoose de
-//  hacer lo que en SQL sería una clave ajena (FOREIGN KEY).
-//  Luego, al leer, usamos .populate() para que nos devuelva los datos reales.
-// ===========================================================================
 
+// Esquema de la coleccion citas: relaciona un paciente con un doctor en una fecha dada.
 import mongoose from "mongoose";
 
 const CitaSchema = new mongoose.Schema(
     {
-        pacienteId: {
-            type: mongoose.Schema.Types.ObjectId, // guarda el _id del paciente
-            ref: "Paciente",                      // apunta al modelo Paciente
+        // El paciente se guarda por su DNI en texto, no como referencia de Mongoose.
+        pacienteDNI: {
+            type: String,
             required: true
         },
+        // El doctor si es una referencia: conserva su _id y habilita populate en las rutas.
         doctorId: {
-            type: mongoose.Schema.Types.ObjectId, // guarda el _id del doctor
-            ref: "Doctor",                        // apunta al modelo Doctor
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Doctor",
             required: true
         },
-        fecha: { type: String, required: true },  // día de la cita (aaaa-mm-dd)
-        hora: { type: String, required: true },   // hora de la cita (hh:mm)
-        motivo: { type: String, required: true }, // motivo de la consulta
+        // Fecha y hora se almacenan como texto con los formatos aaaa-mm-dd y hh:mm.
+        fecha: { type: String, required: true },
+        hora: { type: String, required: true },
+        motivo: { type: String, required: true },
+        // Campo libre opcional; si no se envia queda como cadena vacia.
         observacions: {
             type: String,
-            default: ""                           // si no se envía, queda vacío
+            default: ""
         },
+        // Situacion de la cita: pendente, confirmada, cancelada o realizada.
         estado: {
             type: String,
-            default: "pendente"                   // estado inicial de toda cita
+            default: "pendente"
         }
     },
     {
-        collection: "citas", // nombre de la colección en MongoDB
-        timestamps: true     // guarda cuándo se creó y se modificó
+        // Nombre exacto de la coleccion tal como aparece en MongoDB.
+        collection: "citas"
     }
 );
 
 export default mongoose.model("Cita", CitaSchema);
+// Modelo que importan las rutas para consultar y modificar citas.

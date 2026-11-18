@@ -1,64 +1,19 @@
 <template>
-  <footer class="footer-content footer">
-    <!--
-      Lista de enlaces legales. Antes había un <router-link> suelto dentro
-      del <ul> (HTML inválido): ahora cada enlace va dentro de su propio <li>.
-    -->
-    <ul class="link-aviso">
-      <li><router-link to="/avisolegal">Aviso Legal</router-link></li>
-      <li><router-link to="/politica-privacidad">Política de privacidade</router-link></li>
+  <!-- Pie compartido con enlaces legales y el ano calculado en tiempo de renderizado. -->
+  <footer class="mt-auto flex items-center justify-center gap-20 bg-[#14543a] px-24 py-[0.2rem] text-center text-[0.9rem] text-white max-[768px]:flex-col max-[768px]:gap-4 max-[768px]:px-4">
+    <!-- Utilidades Tailwind aplican el color de marca y el cambio responsive del pie. -->
+    <ul class="m-0 mt-[6px] block cursor-pointer list-none p-0 text-[#f9d342]">
+      <router-link
+        to="/avisolegal"
+        target="_blank"
+        class="text-[#f9d342] no-underline transition-colors hover:text-white focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#ffe66d]"
+      >
+        Aviso Legal
+      </router-link>
     </ul>
-
-    <!--
-      new Date().getFullYear() crea un objeto Date con la fecha actual del
-      navegador y devuelve el año (p. ej. 2026). Así el año del copyright
-      se actualiza solo y no hay que editarlo a mano cada año.
-    -->
     <p>© {{ new Date().getFullYear() }} XestiónApp — Desenvolvido en Vue 3</p>
   </footer>
 </template>
 
-<style scoped>
-footer {
-  box-sizing: border-box;
-  position: static;
-  justify-self: center;
-  width: 100%;
-}
-
-.footer {
-  background: #1b6534;
-  color: white;
-  text-align: center;
-  padding: 0.5rem;
-  margin-top: 3rem;
-  font-size: 0.9rem;
-}
-
-/* Lista de enlaces sin viñetas y en horizontal */
-.link-aviso {
-  display: flex;
-  gap: 1.5rem;
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-
-.link-aviso a {
-  color: #f9d342;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.link-aviso a:hover {
-  text-decoration: underline;
-}
-
-.footer-content {
-  display: flex;
-  justify-content: center; /* centra horizontalmente */
-  align-items: center;     /* alinea verticalmente na mesma liña */
-  gap: 5rem;               /* espazo entre o texto e os enlaces */
-  flex-wrap: wrap;         /* en pantallas pequenas pasa a varias liñas */
-}
-</style>
+<!-- No usa estado ni metodos: el enlace es estatico y el ano se obtiene con JavaScript. -->
+<script setup></script>

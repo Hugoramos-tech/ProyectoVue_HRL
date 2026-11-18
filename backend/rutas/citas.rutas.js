@@ -1,157 +1,160 @@
-// ===========================================================================
-//  backend/rutas/citas.rutas.js
-//
-//  Rutas (endpoints) de la API REST para las citas médicas. Cuelgan de
-//  /api/citas porque en server.js se monta así:
-//        app.use('/api/citas', citasRutas)
-//
-//  Novedad respecto a pacientes y doctores: aquí usamos .populate(), que
-//  cambia el _id guardado en la cita por los datos reales del paciente y
-//  del doctor (sería como el JOIN de SQL).
-// ===========================================================================
+// Rutas del CRUD de citas, montadas bajo /api/citas desde server.js.
+// Necesita los modelos de paciente y doctor para comprobar que la cita apunta a datos reales.
+import express from "express"
+import Cita from "../modelos/Cita.js"
+import Doctor from "../modelos/Doctor.js"
+import Paciente from "../modelos/Paciente.js"
 
-import express from "express";
-import Cita from "../modelos/Cita.js";
+// Router independiente: server.js lo monta bajo /api/citas.
+const router = express.Router()
 
-const router = express.Router();
+// Lista blanca de propiedades que se aceptan al crear o editar una cita.
+// Cualquier propiedad ajena a esta lista se descarta antes de tocar la base de datos.
+const camposCita = [
+    "pacienteDNI",
+    "doctorId",
+    "fecha",
+    "hora",
+    "motivo",
+    "observacions",
+    "estado"
+]
 
-// Campos que queremos que nos devuelva populate de cada relación.
-// Así no mandamos al navegador datos que no se usan en la tabla.
-const CAMPOS_PACIENTE = "dnipac nomepac apelpac";
-const CAMPOS_DOCTOR = "iddoc nomedoc apeldoc espedoc";
-
-// --------------------------------------------------------------------------
-// READ -> Obtener TODAS las citas.          GET /api/citas
-//  .sort({ fecha: 1, hora: 1 }) -> 1 = ascendente (de la más antigua a la
-//  más reciente); si fuese -1 sería descendente.
-// --------------------------------------------------------------------------
-router.get("/", async (req, res) => {
-  try {
-    const citas = await Cita.find()
-      .populate("pacienteId", CAMPOS_PACIENTE)
-      .populate("doctorId", CAMPOS_DOCTOR)
-      .sort({ fecha: 1, hora: 1 });
-
-    res.json(citas);
-  } catch (error) {
-    console.error("Error al obtener citas:", error);
-    res.status(500).json({
-      message: "Error al obtener citas",
-    });
-  }
-});
-
-// --------------------------------------------------------------------------
-// READ -> Obtener UNA cita por su _id de MongoDB.
-//         GET /api/citas/6abb7e2721ef4c373289ef50
-// --------------------------------------------------------------------------
-router.get("/:id", async (req, res) => {
-  try {
-    const cita = await Cita.findById(req.params.id)
-      .populate("pacienteId", CAMPOS_PACIENTE)
-      .populate("doctorId", CAMPOS_DOCTOR);
-
-    if (!cita) {
-      return res.status(404).json({
-        message: "Cita no encontrada",
-      });
-    }
-
-    res.json(cita);
-  } catch (error) {
-    console.error("Error al obtener cita:", error);
-    res.status(500).json({
-      message: "Error al obtener cita",
-    });
-  }
-});
-
-// --------------------------------------------------------------------------
-// CREATE -> Crear una cita nueva.           POST /api/citas
-// --------------------------------------------------------------------------
-router.post("/", async (req, res) => {
-  try {
-    // Un mismo doctor no puede tener dos citas el mismo día a la misma hora.
-    const citaExistente = await Cita.findOne({
-      doctorId: req.body.doctorId,
-      fecha: req.body.fecha,
-      hora: req.body.hora,
-    });
-
-    if (citaExistente) {
-      return res.status(400).json({
-        message: "Ese doctor xa ten unha cita nesa data e hora",
-      });
-    }
-
-    console.log("Datos recibidos:", req.body);
-    const cita = new Cita(req.body);
-
-    const novaCita = await cita.save();
-
-    // Volvemos a leerla con populate para devolverla ya con los nombres
-    // del paciente y del doctor (así la tabla se pinta directamente).
-    const citaCompleta = await Cita.findById(novaCita._id)
-      .populate("pacienteId", CAMPOS_PACIENTE)
-      .populate("doctorId", CAMPOS_DOCTOR);
-
-    res.status(201).json(citaCompleta);
-  } catch (error) {
-    console.error("Error al crear cita:", error);
-    res.status(500).json({
-      message: "Error al crear cita",
-    });
-  }
-});
-
-// --------------------------------------------------------------------------
-// UPDATE -> Modificar una cita.             PUT /api/citas/<_id>
-// --------------------------------------------------------------------------
-router.put("/:id", async (req, res) => {
-  try {
-    const cita = await Cita.findByIdAndUpdate(
-      req.params.id, // cuál modificamos
-      req.body,      // datos nuevos
-      { new: true }, // devuélvemela ya modificada
+// Descarta campos no admitidos para evitar guardar propiedades arbitrarias del cliente.
+function datosPermitidos(body) {
+    // Si la peticion llega sin cuerpo, se procesa como un objeto vacio.
+    const datosRecibidos = body ?? {}
+    return Object.fromEntries(
+        camposCita
+            .filter((campo) => datosRecibidos[campo] !== undefined)
+            .map((campo) => [campo, datosRecibidos[campo]])
     )
-      .populate("pacienteId", CAMPOS_PACIENTE)
-      .populate("doctorId", CAMPOS_DOCTOR);
+}
 
-    if (!cita) {
-      return res.status(404).json({
-        mensaje: "Cita no encontrada",
-      });
+// Comprueba que el DNI y el identificador de doctor correspondan a registros existentes.
+// MongoDB no tiene claves ajenas, asi que la integridad se comprueba aqui a mano.
+async function validarRelaciones(datos) {
+    if (datos.pacienteDNI) {
+        datos.pacienteDNI = String(datos.pacienteDNI).trim().toUpperCase()
+        if (!(await Paciente.exists({ dnipac: datos.pacienteDNI }))) {
+            return "El paciente seleccionado no existe"
+        }
     }
 
-    res.json(cita);
-  } catch (error) {
-    console.error("Error al actualizar cita:", error);
-    res.status(500).json({
-      mensaje: "Error al actualizar cita",
-    });
-  }
-});
+    if (datos.doctorId && !(await Doctor.exists({ _id: datos.doctorId }))) {
+        return "El doctor seleccionado no existe"
+    }
 
-// --------------------------------------------------------------------------
-// DELETE -> Borrar una cita.                DELETE /api/citas/<_id>
-// --------------------------------------------------------------------------
+    return ""
+}
+
+// GET /api/citas: filtra por DNI de paciente y doctor, y ordena cronologicamente.
+router.get("/", async (req, res) => {
+    try {
+        // Los filtros simultaneos se combinan con AND para devolver la interseccion.
+        // Los filtros llegan como query params, por ejemplo /api/citas?pacienteDNI=12345678Z
+        const filtros = {}
+        if (req.query.pacienteDNI) {
+            filtros.pacienteDNI = String(req.query.pacienteDNI).trim().toUpperCase()
+        }
+        if (req.query.doctorId) {
+            filtros.doctorId = req.query.doctorId
+        }
+
+        // lean() devuelve objetos simples y prioriza las proximas citas.
+        // Orden ascendente por fecha y, a igual fecha, por hora.
+        const citas = await Cita.find(filtros).sort({ fecha: 1, hora: 1 }).lean()
+        res.json(citas)
+    } catch (error) {
+        if (error.name === "CastError") {
+            return res.status(400).json({ mensaje: "El ID del doctor no es válido" })
+        }
+
+        console.error("Error al listar las citas:", error)
+        res.status(500).json({ mensaje: "Error al listar las citas" })
+    }
+})
+
+// POST /api/citas: valida las relaciones y guarda una cita nueva.
+router.post("/", async (req, res) => {
+    try {
+        // Normaliza los campos antes de validar referencias o crear el documento.
+        const datos = datosPermitidos(req.body)
+        // Mensaje vacio indica que ambas referencias apuntan a registros existentes.
+        const errorRelacion = await validarRelaciones(datos)
+
+        if (errorRelacion) {
+            return res.status(400).json({ mensaje: errorRelacion })
+        }
+
+        // Documento que Mongoose valida y persiste antes de devolverlo en la respuesta.
+        // create construye el documento y lo guarda en un solo paso.
+        const cita = await Cita.create(datos)
+        res.status(201).json(cita)
+    } catch (error) {
+        if (error.name === "ValidationError" || error.name === "CastError") {
+            return res.status(400).json({ mensaje: error.message })
+        }
+
+        console.error("Error al crear la cita:", error)
+        res.status(500).json({ mensaje: "Error al crear la cita" })
+    }
+})
+
+// PUT /api/citas/:id: actualiza los campos permitidos de una cita existente.
+router.put("/:id", async (req, res) => {
+    try {
+        // Conserva solamente las propiedades de cita admitidas por la lista blanca.
+        const datos = datosPermitidos(req.body)
+        // Impide que la edicion asigne referencias a registros inexistentes.
+        const errorRelacion = await validarRelaciones(datos)
+
+        if (errorRelacion) {
+            return res.status(400).json({ mensaje: errorRelacion })
+        }
+
+        // Retorna la version actualizada y vuelve a comprobar las reglas del esquema.
+        // runValidators reaplica las reglas del esquema, que una actualizacion se saltaria.
+        const cita = await Cita.findByIdAndUpdate(
+            req.params.id,
+            datos,
+            { new: true, runValidators: true }
+        )
+
+        if (!cita) {
+            return res.status(404).json({ mensaje: "Cita no encontrada" })
+        }
+
+        res.json(cita)
+    } catch (error) {
+        if (error.name === "ValidationError" || error.name === "CastError") {
+            return res.status(400).json({ mensaje: error.message })
+        }
+
+        console.error("Error al modificar la cita:", error)
+        res.status(500).json({ mensaje: "Error al modificar la cita" })
+    }
+})
+
+// DELETE /api/citas/:id: elimina una cita usando el identificador de MongoDB.
 router.delete("/:id", async (req, res) => {
-  try {
-    const cita = await Cita.findByIdAndDelete(req.params.id);
+    try {
+        // El resultado permite responder 404 cuando el identificador no existia.
+        const cita = await Cita.findByIdAndDelete(req.params.id)
 
-    if (!cita) {
-      return res.status(404).json({
-        mensaje: "Cita no encontrada",
-      });
+        if (!cita) {
+            return res.status(404).json({ mensaje: "Cita no encontrada" })
+        }
+
+        res.json({ mensaje: "Cita eliminada" })
+    } catch (error) {
+        if (error.name === "CastError") {
+            return res.status(400).json({ mensaje: "El ID de la cita no es válido" })
+        }
+
+        console.error("Error al eliminar la cita:", error)
+        res.status(500).json({ mensaje: "Error al eliminar la cita" })
     }
+})
 
-    res.json({ mensaje: "cita eliminada" });
-  } catch (error) {
-    console.error("Error al eliminar cita:", error);
-    res.status(500).json({
-      mensaje: "Error al eliminar cita",
-    });
-  }
-});
-
-export default router;
+export default router

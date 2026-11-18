@@ -1,46 +1,25 @@
 <template>
-  <!-- ======================= ZONA TEMPLATE ===========================
-       Página de error 404. El router la muestra cuando la URL escrita
-       no coincide con ninguna ruta (ver la ruta comodín :pathMatch).
-  ================================================================== -->
-  <div class="non-atopada">
-    <h2>A páxina non se atopa</h2>
-
-    <!-- La imagen vive en src/assets, por eso la ruta empieza por ../ .
-         El alt es obligatorio para accesibilidad (lectores de pantalla). -->
-    <img src="../assets/404.png" alt="Erro 404: páxina non atopada" />
-
-    <p>Comproba o enderezo ou volve ao inicio.</p>
-
-    <!-- router-link navega SIN recargar la página (es una SPA) -->
-    <router-link class="btn-volver" to="/">⬅ Volver ao inicio</router-link>
-  </div>
+  <!-- Pantalla de error 404, a la que lleva la ruta comodin del router. -->
+  <main class="flex flex-1 items-center justify-center rounded-lg bg-white p-6 text-center shadow-[0_2px_10px_rgba(0,0,0,0.05)] sm:p-10">
+    <section class="flex max-w-2xl flex-col items-center" aria-labelledby="error-titulo">
+      <img
+        src="../assets/404.png"
+        class="mb-6 h-auto w-full max-w-[400px]"
+        alt="Ilustración de página no encontrada"
+      >
+      <h1 id="error-titulo" class="mb-3 text-2xl font-bold text-[#153f2e] sm:text-3xl">
+        A páxina que buscas non se atopa
+      </h1>
+      <p class="mb-6 max-w-lg leading-7 text-[#64737a]">
+        É posible que o enderezo cambiase ou que a páxina xa non estea dispoñible.
+        Podes volver ao inicio e continuar desde alí.
+      </p>
+      <RouterLink
+        to="/"
+        class="inline-flex min-h-11 items-center justify-center rounded-full bg-[#14543a] px-6 py-3 font-bold text-white no-underline transition hover:bg-[#0f4530] focus-visible:outline-3 focus-visible:outline-offset-3 focus-visible:outline-[#ffe66d]"
+      >
+        Volver al inicio
+      </RouterLink>
+    </section>
+  </main>
 </template>
-
-<style scoped>
-/* scoped = estos estilos solo afectan a ESTE componente */
-.non-atopada {
-  text-align: center;
-  padding: 2rem 1rem;
-}
-
-.non-atopada img {
-  max-width: 100%;   /* nunca se sale de la pantalla en el móvil */
-  height: auto;      /* mantiene la proporción de la imagen */
-  margin: 1rem auto;
-}
-
-.btn-volver {
-  display: inline-block;
-  margin-top: 1rem;
-  padding: 0.5rem 1.5rem;
-  background-color: #1b6534;
-  color: white;
-  text-decoration: none;
-  border-radius: 4px;
-}
-
-.btn-volver:hover {
-  background-color: #07c751;
-}
-</style>

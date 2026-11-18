@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+tools/generador-componentes/salidas/
 
 # Editor directories and files
 .vscode/*
@@ -23,5 +24,4 @@ dist-ssr
 *.sln
 *.sw?
 
-# Variables de entorno (contraseñas): NUNCA se suben al repositorio
 .env

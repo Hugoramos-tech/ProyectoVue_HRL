@@ -1,18 +1,8 @@
-// ===========================================================================
-//  vite.config.js
-//  Configuración de Vite, la herramienta que levanta el servidor de
-//  desarrollo (npm run dev) y empaqueta la aplicación (npm run build).
-// ===========================================================================
-
-import vue from '@vitejs/plugin-vue'   // plugin que entiende los ficheros .vue
+import vue from '@vitejs/plugin-vue'
+import tailwindcss from '@tailwindcss/vite'
 import { defineConfig } from 'vite'
 
-// https://vite.dev/config/
+// Vite transforma componentes Vue y procesa las clases de Tailwind durante desarrollo/build.
 export default defineConfig({
-  plugins: [vue()],
-
-  server: {
-    port: 5173,   // puerto del front; el backend usa el 3000
-    open: false   // ponlo a true si quieres que abra el navegador solo
-  }
+  plugins: [vue(), tailwindcss()],
 })

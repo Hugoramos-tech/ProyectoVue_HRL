@@ -1,33 +1,21 @@
-# ===========================================================================
-#  docker-compose.yaml
-#  Levanta la base de datos MongoDB dentro de un contenedor de Docker, para
-#  no tener que instalar MongoDB en el ordenador.
-#
-#  Comandos básicos (desde la carpeta del proyecto):
-#     docker compose up -d      -> levanta el contenedor en segundo plano
-#     docker compose ps         -> ver si está funcionando
-#     docker compose logs -f    -> ver los mensajes del contenedor
-#     docker compose stop       -> parar el contenedor (los datos se conservan)
-#     docker compose down       -> parar y borrar el contenedor (datos a salvo
-#                                  porque están en el volumen mongodb_data)
-#     docker compose down -v    -> CUIDADO: borra también los datos
-#
-#  Conexión desde MongoDB Compass:
-#     mongodb://admin:abc123@localhost:27017/?authSource=admin
-# ===========================================================================
-
 services:
   mongodb:
-    image: mongo:7.0              # imagen oficial de MongoDB, versión 7.0
-    container_name: mongodb       # nombre del contenedor (se ve en docker ps)
-    restart: unless-stopped       # se reinicia solo salvo que lo paremos nosotros
-    environment:                  # usuario administrador que crea al arrancar
+    # MongoDB se ejecuta en contenedor para el desarrollo local.
+    image: mongo:8.0
+    # Nombre estable para reconocer el contenedor en Docker.
+    container_name: mongodb
+    # Reinicia el servicio salvo que se detenga explicitamente.
+    restart: unless-stopped
+    environment:
+      # Credenciales locales para inicializar MongoDB; configura secretos seguros fuera de desarrollo.
       MONGO_INITDB_ROOT_USERNAME: admin
       MONGO_INITDB_ROOT_PASSWORD: abc123
     ports:
-      - "27017:27017"             # puerto del PC : puerto dentro del contenedor
+      # Publica la base local en el puerto por defecto que usa la aplicacion.
+      - "27017:27017"
     volumes:
-      - mongodb_data:/data/db     # guarda los datos fuera del contenedor
-
+      # Persiste los datos aunque el contenedor se elimine o se actualice.
+      - mongodb_data:/data/db
 volumes:
-  mongodb_data:                   # volumen con los datos de la base de datos
+  # Volumen nombrado administrado por Docker.
+  mongodb_data:

@@ -1,16 +1,10 @@
-// ===========================================================================
-//  src/utils/alertas.js   (UD6 - SweetAlert2 en Vue.js)
-//
-//  Centraliza TODOS los avisos de la aplicación en un único sitio.
-//  Ventaja: si mañana queremos cambiar el aspecto de los mensajes, solo
-//  tocamos este fichero y cambian en toda la aplicación.
-//
-//  Librería instalada con:  npm install sweetalert2
-// ===========================================================================
 
+// Centraliza los dialogos para que todas las pantallas compartan el mismo estilo y botones.
+// Las cuatro funciones devuelven la promesa de SweetAlert2, por lo que admiten await.
 import Swal from 'sweetalert2'
 
-// Alerta de éxito (operación correcta: guardar, modificar, borrar...)
+// Muestra un resultado satisfactorio y devuelve la promesa de SweetAlert2.
+// mensaje describe la operacion; titulo permite reemplazar el encabezado por defecto.
 export const alertaExito = (mensaje, titulo = 'Correcto') => {
     return Swal.fire({
         icon: 'success',
@@ -20,7 +14,7 @@ export const alertaExito = (mensaje, titulo = 'Correcto') => {
     })
 }
 
-// Alerta de error (algo ha fallado: validación, backend caído, duplicado...)
+// Informa de una operacion fallida; devuelve la promesa para poder esperarla si hace falta.
 export const alertaError = (mensaje, titulo = 'Error') => {
     return Swal.fire({
         icon: 'error',
@@ -30,7 +24,7 @@ export const alertaError = (mensaje, titulo = 'Error') => {
     })
 }
 
-// Alerta informativa (avisos que no son ni error ni éxito)
+// Presenta informacion neutral al usuario, por ejemplo el resultado de una busqueda.
 export const alertaInfo = (mensaje, titulo = 'Información') => {
     return Swal.fire({
         icon: 'info',
@@ -40,12 +34,8 @@ export const alertaInfo = (mensaje, titulo = 'Información') => {
     })
 }
 
-// Confirmación de una acción (sí / no) antes de algo irreversible.
-// Devuelve una PROMESA, por eso en los componentes se usa con await:
-//
-//    const resultado = await alertaConfirmacion('¿Eliminar o paciente?')
-//    if (!resultado.isConfirmed) return;   // el usuario pulsó Cancelar
-//
+// Pide confirmacion antes de una accion irreversible; el resultado incluye isConfirmed.
+// Se emplea comprobando r.isConfirmed antes de continuar con la accion.
 export const alertaConfirmacion = (mensaje, titulo = '¿Estás seguro?') => {
     return Swal.fire({
         icon: 'question',
@@ -54,6 +44,6 @@ export const alertaConfirmacion = (mensaje, titulo = '¿Estás seguro?') => {
         showCancelButton: true,
         confirmButtonText: 'Aceptar',
         cancelButtonText: 'Cancelar',
-        reverseButtons: true
+        reverseButtons: false
     })
 }

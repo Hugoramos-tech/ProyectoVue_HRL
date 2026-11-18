@@ -1,24 +1,16 @@
-// ===========================================================================
-//  src/main.js
-//  Punto de entrada de la aplicación: aquí se "enciende" Vue.
-//
-//  Orden de lo que hacemos:
-//    1. Creamos la aplicación a partir del componente raíz App.vue
-//    2. Le enchufamos Pinia  (almacén de datos compartido - UD8)
-//    3. Le enchufamos el Router (navegación entre páginas - UD3)
-//    4. La montamos dentro del <div id="app"> del index.html
-// ===========================================================================
+// Crea la instancia principal de Vue y registra los recursos globales de la aplicacion.
+import { createApp } from 'vue'
+// Pinia es la libreria oficial de Vue para el manejo del estado global de la aplicacion.
+import { createPinia } from 'pinia'
+// Carga los estilos globales y las utilidades de Tailwind antes de montar la interfaz.
+import './style.css'
+// App.vue contiene la estructura comun que se comparte entre todas las rutas.
+import App from './App.vue'
+// El router decide que pantalla aparece dentro de <router-view>.
+import router from './router'
 
-import { createApp } from 'vue'          // función que crea la aplicación Vue
-import { createPinia } from 'pinia'      // almacén de estado centralizado
-import './style.css'                     // estilos globales de toda la app
-import App from './App.vue'              // componente raíz
-import router from './router'            // configuración de rutas (src/router/index.js)
+// Se crea la instancia de Pinia para el manejo del estado global de la aplicacion.
+const pinia = createPinia()
 
-// createApp(App) -> crea la app;  .use(...) -> le añade complementos (plugins)
-const app = createApp(App)
-
-app.use(createPinia())  // ahora cualquier componente puede usar los stores
-app.use(router)         // ahora funcionan <router-link> y <router-view>
-
-app.mount('#app')       // dibuja la app dentro del div con id="app"
+// Instala la navegacion y pinia y renderiza la aplicacion dentro del elemento #app de index.html.
+createApp(App).use(router).use(pinia).mount('#app')

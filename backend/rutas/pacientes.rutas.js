@@ -1,150 +1,117 @@
-// ===========================================================================
-//  backend/rutas/pacientes.rutas.js
-//
-//  Rutas (endpoints) de la API REST para los pacientes. Todas cuelgan de
-//  /api/pacientes porque así se montan en server.js:
-//        app.use('/api/pacientes', pacientesRutas)
-//
-//  Recordatorio de los verbos HTTP y el CRUD:
-//        GET    -> leer        (Read)
-//        POST   -> crear       (Create)
-//        PUT    -> modificar   (Update)
-//        DELETE -> borrar      (Delete)
-// ===========================================================================
+// Rutas del CRUD de pacientes, montadas bajo /api/pacientes desde server.js.
+// El DNI viaja en la URL y es el identificador publico del paciente.
+import express from "express"
+import Paciente from "../modelos/Paciente.js"
 
-import express from "express";
-import Paciente from "../modelos/Paciente.js";
+// Agrupa las operaciones HTTP disponibles para pacientes.
+const router = express.Router()
 
-// Router: mini-aplicación de Express donde colgamos las rutas.
-const router = express.Router();
-
-// --------------------------------------------------------------------------
-// READ -> Obtener TODOS los pacientes.      GET /api/pacientes
-// --------------------------------------------------------------------------
+// GET /api/pacientes: lista pacientes y mantiene compatibilidad con el campo antiguo nompac.
 router.get("/", async (req, res) => {
-  try {
-    const pacientes = await Paciente.find(); // find() sin filtro = "SELECT *"
-
-    res.json(pacientes); // devolvemos el array en formato JSON
-  } catch (error) {
-    console.error("Error al obtener pacientes:", error);
-    res.status(500).json({
-      message: "Error al obtener pacientes",
-    });
-  }
-});
-
-// --------------------------------------------------------------------------
-// READ -> Obtener UN paciente por su DNI.   GET /api/pacientes/12345678Z
-//  :dni es un parámetro variable, se lee con req.params.dni
-// --------------------------------------------------------------------------
-router.get("/:dni", async (req, res) => {
-  try {
-    const paciente = await Paciente.findOne({
-      dnipac: req.params.dni,
-    });
-
-    // Si no existe devolvemos un 404 (no encontrado) y salimos con return.
-    if (!paciente) {
-      return res.status(404).json({
-        message: "Paciente no encontrado",
-      });
+    try {
+        // Lista simple que luego se adapta para mantener compatibilidad con registros antiguos.
+        // find sin filtro equivale a un SELECT *; lean devuelve objetos planos, no documentos.
+        const pacientes = await Paciente.find().lean()
+        // La respuesta usa nomepac; nompac solo se consulta para registros antiguos.
+        res.json(pacientes.map(({ nompac, ...paciente }) => ({
+            ...paciente,
+            nomepac: paciente.nomepac ?? nompac
+        })))
+    } catch (error) {
+        res.status(500).json({ mensaje: ("Error al listar los pacientes", error)})
     }
+})
 
-    res.json(paciente);
-  } catch (error) {
-    console.error("Error al obtener paciente:", error);
-    res.status(500).json({
-      message: "Error al obtener paciente",
-    });
-  }
-});
-
-// --------------------------------------------------------------------------
-// CREATE -> Crear un paciente nuevo.        POST /api/pacientes
-//  Los datos llegan en el cuerpo de la petición: req.body
-// --------------------------------------------------------------------------
+// POST /api/pacientes: normaliza DNI y movil, comprueba duplicados y crea el paciente.
 router.post("/", async (req, res) => {
-  try {
-    // Primero comprobamos que no exista ya otro paciente con ese DNI.
-    const pacienteExistente = await Paciente.findOne({
-      dnipac: req.body.dnipac,
-    });
+    try {
+        console.log("Datos recibidos:", req.body);
+        // Canoniza el DNI para que mayusculas y espacios no creen duplicados distintos.
+        const dnipac = String(req.body.dnipac ?? "").trim().toUpperCase();
+        // Quita espacios del numero antes de validar el formato nacional admitido.
+        const movilpac = String(req.body.movilpac ?? "").replace(/\s+/g, "");
 
-    if (pacienteExistente) {
-      return res.status(400).json({
-        message: "El paciente con este DNI ya existe",
-      });
+        // Formato nacional: empieza por 6 o 7 y suma nueve digitos en total.
+        if (!/^[67]\d{8}$/.test(movilpac)) {
+            return res.status(400).json({
+                mensaje: "El móvil debe empezar por 6 o 7 y tener 9 dígitos"
+            });
+        }
+
+        // Evita altas con un DNI que ya pertenece a otro documento.
+        const pacienteDuplicado = await Paciente.findOne({ dnipac });
+
+        if (pacienteDuplicado) {
+            return res.status(409).json({
+                mensaje: "Ya existe un paciente con ese DNI"
+            });
+        }
+
+        // Conserva el resto de datos del formulario y sustituye los campos normalizados.
+        const paciente = new Paciente({ ...req.body, dnipac, movilpac })
+
+        // Documento confirmado por MongoDB que se devuelve a quien hizo el alta.
+        const nuevoPaciente = await paciente.save()
+
+        res.status(201).json(nuevoPaciente)
+        
+    } catch (error) {
+        console.error("ERROR AL CREAR PACIENTE:", error)
+        res.status(500).json({
+            mensaje: "Error al crear el paciente"
+        })
     }
+})
 
-    // si no existe, se crea el paciente nuevo
-    console.log("Datos recibidos:", req.body);
-    const paciente = new Paciente(req.body); // objeto en memoria
-
-    const nuevoPaciente = await paciente.save(); // lo guarda en MongoDB
-
-    // 201 = "Created". Devolvemos el paciente ya con su _id.
-    res.status(201).json(nuevoPaciente);
-  } catch (error) {
-    console.error("Error al crear paciente:", error);
-
-    res.status(500).json({
-      message: "Error al crear paciente",
-    });
-  }
+// DELETE /api/pacientes/:dni: elimina el paciente usando su DNI como identificador publico.
+router.delete("/:dni", async (req, res) => {
+    try {
+        // Documento eliminado o null si ningun paciente coincide con el DNI recibido.
+        // Devuelve null cuando el DNI no existia, lo que permite responder con un 404.
+        const paciente = await Paciente.findOneAndDelete({ dnipac: req.params.dni });
+        if (!paciente) {
+            return res.status(404).json({ mensaje: "Paciente no encontrado" });
+        }
+        res.json({ mensaje: "Paciente eliminado" });
+    } catch (error) {
+        res.status(500).json({ mensaje: "Error al eliminar el paciente", error });
+    }
 });
 
-// --------------------------------------------------------------------------
-// UPDATE -> Modificar un paciente.          PUT /api/pacientes/12345678Z
-//  { new: true } hace que nos devuelva el documento YA modificado
-//  (si no, devolvería cómo estaba antes del cambio).
-// --------------------------------------------------------------------------
-router.put("/:dnipac", async (req, res) => {
-  try {
-    const paciente = await Paciente.findOneAndUpdate(
-      { dnipac: req.params.dnipac }, // a quién modificamos
-      req.body,                      // datos nuevos
-      { new: true },                 // devuélvemelo ya modificado
-    );
+// PUT /api/pacientes/:dni: actualiza los campos de un paciente identificado por DNI.
+router.put("/:dni", async (req, res) => {
+    try {
+        // Devuelve el paciente con los campos nuevos tras localizarlo por su DNI actual.
+        // new: true devuelve el documento ya modificado en lugar de su version anterior.
+        const paciente = await Paciente.findOneAndUpdate(
+            { dnipac: req.params.dni },
+            req.body,
+            { new: true }
+        );
 
-    if (!paciente) {
-      return res.status(404).json({
-        mensaje: "Paciente no encontrado",
-      });
+        if (!paciente) {
+            return res.status(404).json({ mensaje: "Paciente no encontrado" });
+        }
+
+        res.json(paciente);
+        
+    } catch {
+        res.status(500).json({ mensaje: "Error al modificar el paciente" });
     }
-
-    res.json(paciente);
-  } catch (error) {
-    console.error("Error al actualizar paciente:", error);
-    res.status(500).json({
-      mensaje: "Error al actualizar paciente",
-    });
-  }
 });
 
-// --------------------------------------------------------------------------
-// DELETE -> Borrar un paciente.             DELETE /api/pacientes/12345678Z
-// --------------------------------------------------------------------------
-router.delete("/:dnipac", async (req, res) => {
-  try {
-    const paciente = await Paciente.findOneAndDelete({
-      dnipac: req.params.dnipac,
-    });
-
-    if (!paciente) {
-      return res.status(404).json({
-        mensaje: "Paciente no encontrado",
-      });
+// GET /api/pacientes/:dni: devuelve un paciente o un 404 si no existe.
+router.get("/:dni", async (req, res) => {
+    try {
+        // Consulta individual convertida a objeto simple para formar la respuesta JSON.
+        const paciente = await Paciente.findOne({ dnipac: req.params.dni }).lean();
+        if (!paciente) {
+            return res.status(404).json({ mensaje: "Paciente no encontrado" });
+        }
+        res.json(paciente);
+    } catch (error) {
+        res.status(500).json({ mensaje: "Error al buscar el paciente", error });
     }
-
-    res.json({ mensaje: "paciente eliminado" });
-  } catch (error) {
-    console.error("Error al eliminar paciente:", error);
-    res.status(500).json({
-      mensaje: "Error al eliminar paciente",
-    });
-  }
 });
 
-// Exportamos el router para poder usarlo en server.js
 export default router;

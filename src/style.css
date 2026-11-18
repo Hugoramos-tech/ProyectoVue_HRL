@@ -1,149 +1,559 @@
-/* ==========================================================================
-   src/style.css
-   ESTILOS GLOBALES de la aplicación (se importan una sola vez en main.js).
+/* Tailwind aporta los tokens de tema y las utilidades que se usan en los templates. */
+/* Tailwind trabaja con clases de utilidad escritas en el propio HTML de los componentes, */
+/* por eso los .vue apenas tienen bloque style. Las clases entre corchetes, como */
+/* bg-[#14543a] o max-[768px]:flex-col, aplican un valor concreto fuera del tema. */
+@import "tailwindcss/theme.css";
+@import "tailwindcss/utilities.css";
 
-   Aquí va solo lo que afecta a TODA la web:
-     - las variables de color (paleta corporativa)
-     - la tipografía base
-     - los elementos comunes: body, títulos, tablas, botones, enlaces
-   Lo propio de cada pantalla va en el <style scoped> de su componente.
-   ========================================================================== */
+/* Tokens globales: reutilizalos para mantener una paleta y tipografia coherentes. */
+@theme {
+  --font-sans: system-ui, "Segoe UI", Roboto, sans-serif;
+}
 
-/* --------------------------------------------------------------------------
-   1. VARIABLES CSS (custom properties).
-   Se declaran una vez en :root (la raíz del documento) y se usan en todo el
-   proyecto con var(--nombre). Si queremos cambiar el verde de la aplicación,
-   se cambia AQUÍ y cambia en todas partes: eso es consistencia de diseño.
-   -------------------------------------------------------------------------- */
 :root {
-  --verde-escuro: #1b6534;   /* cabecera, pie y títulos */
-  --verde-claro: #07c751;    /* detalles y hover */
-  --verde-boton: #057559;    /* botón de guardar */
-  --amarelo: #f9d342;        /* enlaces del pie y subrayado del menú activo */
-  --texto: #1f2933;          /* color normal del texto */
-  --texto-suave: #6b7280;    /* textos secundarios */
-  --borde: #d1d5db;          /* bordes de inputs y tablas */
-  --fondo: #f6f6f6;          /* fondo general de la página */
-  --branco: #ffffff;         /* fondo de las tarjetas y formularios */
-  --erro: #b3261e;           /* mensajes de error */
+  /* --- PALETA DE VERDES (de mais escuro a mais claro) ----------------
+     Toda a aplicacion e verde: o azul marino que habia antes substituiuse
+     por esta escala. Cada verde garda a luminosidade do azul ao que
+     substitue, asi o texto branco de enriba segue tendo contraste. */
+  --verde-escuro: #0f4530;    /* hover de botons e estados premidos */
+  --color-primario: #14543a;  /* navbar, pe, botons e cabeceiras h4 */
+  --verde-titulo: #153f2e;    /* titulares sobre fondo claro */
+  --verde-hero: #143f2d;      /* fondo da portada */
+  --verde-medio: #2f7d55;     /* iconas e detalles */
+  --verde-mar: #28695e;       /* enlaces "Ir a..." das tarxetas */
+  --verde-suave: #a9cec2;     /* bordos ao pasar o rato */
+  --verde-tenue: #e4f1ed;     /* fondos de chips e tarxetas */
 
-  /* Tipografía base de toda la aplicación */
-  font-family: system-ui, 'Segoe UI', Roboto, Arial, sans-serif;
-  font-size: 16px;
-  line-height: 1.5;
-  color: var(--texto);
+  /* --- NEUTROS cun leve tinte verde --------------------------------- */
+  --color-fondo: #f3f8f5;     /* fondo xeral da paxina */
+  --color-tarjeta: #ffffff;   /* fondo das tarxetas */
+  --color-borde: #cfe0d6;     /* bordos de inputs e tablas */
+  --color-texto: #333;        /* texto: segue sendo gris, le-se mellor */
 
-  /* Mejoras de nitidez del texto */
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* --- ACENTO E ERRO: NON son verdes a proposito --------------------
+     O amarelo e o anel de foco do teclado: un foco verde sobre fondo
+     verde non se veria, e iso rompe a accesibilidade.
+     O vermello marca os erros, que teñen que destacar. */
+  --acento: #ffe66d;
+  --color-error: #e3342f;
 }
 
-/* --------------------------------------------------------------------------
-   2. ELEMENTOS BASE
-   -------------------------------------------------------------------------- */
-body {
-  margin: 0;                 /* quita el margen que el navegador pone por defecto */
-  background: var(--fondo);
-}
-
-/* El div donde Vue monta la aplicación (ver index.html) */
-#app {
-  width: 100%;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;    /* el padding no suma ancho extra */
-}
-
-/* Jerarquía visual de los títulos: tamaños que bajan de h1 a h5 */
-h1, h2, h3, h4, h5 {
-  color: var(--texto);
-  margin: 0 0 0.6rem;
-  line-height: 1.2;
-}
-
-h1 { font-size: 2rem; }
-h2 { font-size: 1.6rem; }
-h3 { font-size: 1.3rem; }
-h4 { font-size: 1.1rem; }
-h5 { font-size: 1rem; }
-
-p {
-  margin: 0 0 0.6rem;
-}
-
-/* Enlaces: sin subrayado, pero subrayados al pasar el ratón (feedback visual) */
-a {
-  color: var(--verde-escuro);
-  text-decoration: none;
-}
-
-a:hover {
-  text-decoration: underline;
-}
-
-/* --------------------------------------------------------------------------
-   3. ACCESIBILIDAD
-   El foco visible es obligatorio para quien navega con el teclado (tabulador):
-   siempre se tiene que ver dónde está situado.
-   -------------------------------------------------------------------------- */
-:focus-visible {
-  outline: 3px solid var(--verde-claro);
-  outline-offset: 2px;
-}
-
-/* Clase de ayuda: texto solo para lectores de pantalla (no se ve, pero se lee) */
-.sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-
-/* --------------------------------------------------------------------------
-   4. FORMULARIOS Y BOTONES (aspecto común en toda la aplicación)
-   -------------------------------------------------------------------------- */
-input,
-select,
-textarea,
-button {
-  font-family: inherit;   /* heredan la tipografía general */
-  font-size: 1rem;
-}
-
-button {
-  cursor: pointer;        /* la manita indica que se puede pulsar */
-}
-
-/* Los campos en los que no se puede escribir se ven en gris */
-input[readonly],
-input:disabled,
-select:disabled,
-textarea:disabled {
-  background-color: #f1f1f1;
-  color: var(--texto-suave);
-}
-
-/* Mensajes de error de los formularios */
-.error {
-  color: var(--erro);
-  font-size: 0.9rem;
-}
-
-/* --------------------------------------------------------------------------
-   5. RESPONSIVE: en pantallas pequeñas bajamos un poco el tamaño de letra
-   -------------------------------------------------------------------------- */
-@media (max-width: 768px) {
-  :root {
-    font-size: 15px;
+/* Estilos base aplicados al documento y a los encabezados comunes. */
+/* Estilos por defecto de las etiquetas: afectan a todos los body, h2 o h4 sin usar clases. */
+@layer base {
+  * {
+    @apply m-0 box-border p-0;
   }
 
-  h1 { font-size: 1.6rem; }
-  h2 { font-size: 1.35rem; }
+  body {
+    @apply bg-[#f3f8f5] font-sans text-[#333];
+  }
+
+  h2 {
+    @apply mb-4 text-2xl font-bold;
+  }
+
+  h4 {
+    @apply text-lg leading-[1.4];
+  }
+}
+
+/* Componentes compartidos: formularios/tablas, citas y adaptacion a pantallas pequenas. */
+/* Clases propias de la aplicacion; @apply evita repetir listas largas de clases en el HTML. */
+/* Las reglas con max-[768px] o @media, al final del fichero, son los ajustes para movil. */
+@layer components {
+  form input[type="date"],
+  form input[type="time"],
+  form input[type="number"],
+  form input[type="tel"],
+  form input[inputmode="numeric"],
+  form input[type="text"]:disabled {
+    text-align: center;
+  }
+
+  /* Reglas de la gestion de pacientes y doctores. */
+  .xestion-pacientes {
+    @apply box-border w-full min-w-0 rounded-lg bg-white p-8 shadow-[0_2px_10px_rgba(0,0,0,0.05)];
+  }
+
+  .xestion-pacientes form,
+  .xestion-doctores form {
+    @apply mb-8 flex w-full flex-col gap-4;
+  }
+
+  .xestion-pacientes .fila,
+  .xestion-doctores .fila {
+    @apply grid w-full grid-cols-[repeat(3,minmax(0,1fr))] gap-4;
+  }
+
+  .xestion-pacientes .campo,
+  .xestion-doctores .campo {
+    @apply flex min-w-0 flex-col items-stretch gap-[0.4rem];
+  }
+
+  .xestion-pacientes .campo > label {
+    @apply font-medium;
+  }
+
+  .xestion-pacientes .consentimiento-privacidad {
+    @apply flex justify-center text-center;
+  }
+
+  .xestion-pacientes .consentimiento-privacidad label {
+    @apply inline-flex flex-wrap items-center justify-center gap-1;
+  }
+
+  .xestion-pacientes .dni-control {
+    @apply flex min-w-0 gap-[0.35rem];
+  }
+
+  .xestion-pacientes .dni-control > input {
+    @apply w-0 flex-1;
+  }
+
+  .xestion-pacientes .dni-acciones {
+    @apply grid grid-rows-[repeat(2,1.3rem)] gap-[0.15rem];
+  }
+
+  .xestion-pacientes .dni-acciones button {
+    @apply box-border h-[1.3rem] min-w-[1.3rem] w-[1.3rem] cursor-pointer rounded border border-[var(--color-borde)] bg-white p-0;
+  }
+
+  .xestion-pacientes .dni-acciones button:hover {
+    @apply bg-[#e8f0ea];
+  }
+
+  .xestion-pacientes .campo input,
+  .xestion-pacientes .campo select {
+    @apply box-border h-[2.75rem] w-full min-w-0 flex-none rounded border border-[var(--color-borde)] p-2;
+  }
+
+  .xestion-pacientes .campo .dni-control > input {
+    @apply h-[2.75rem] w-0 min-w-0 flex-1;
+  }
+
+  .xestion-pacientes form input:user-invalid,
+  .xestion-pacientes form select:user-invalid,
+  .xestion-pacientes form .incorrecto {
+    @apply border-2 border-[#e3342f] bg-[rgba(227,52,47,0.15)];
+  }
+
+  .xestion-pacientes .erro-mail {
+    @apply text-[#e3342f];
+  }
+
+  .xestion-pacientes .centrado,
+  .xestion-doctores .centrado {
+    @apply text-center;
+  }
+
+  .xestion-pacientes .btn-guardar {
+    @apply mx-auto block cursor-pointer rounded border-0 bg-[#14543a] px-4 py-2 font-semibold text-white transition-colors duration-200;
+  }
+
+  .xestion-pacientes .btn-guardar:hover {
+    @apply bg-[#0f4530];
+  }
+
+  .xestion-pacientes .btn-guardar:disabled,
+  .xestion-pacientes .btn-guardar:disabled:hover {
+    @apply cursor-not-allowed bg-[#cfe0d6] opacity-70;
+  }
+
+  .xestion-pacientes .tabla-wrapper,
+  .xestion-doctores .tabla-doctores {
+    @apply overflow-x-auto;
+  }
+
+  .xestion-pacientes table,
+  .xestion-doctores table {
+    @apply mt-4 w-full border-collapse text-[0.85rem];
+  }
+
+  .xestion-pacientes th,
+  .xestion-pacientes td,
+  .xestion-doctores th,
+  .xestion-doctores td {
+    @apply border border-[var(--color-borde)] p-[0.7rem] text-left;
+  }
+
+  .xestion-pacientes th,
+  .xestion-doctores th {
+    @apply bg-[#eef5f1] text-center font-semibold;
+  }
+
+  .xestion-pacientes tbody tr:hover,
+  .xestion-doctores tbody tr:hover {
+    @apply bg-[#eef5f1];
+  }
+
+  .xestion-pacientes .btn-accion {
+    @apply mx-1 cursor-pointer rounded border-2 border-[var(--color-borde)] bg-transparent px-3 py-2 text-base transition-colors duration-200;
+  }
+
+  .xestion-pacientes .btn-accion:hover,
+  .xestion-doctores .btn-secundario:hover,
+  .xestion-doctores .btn-accion:hover {
+    @apply bg-[#e8f0ea];
+  }
+
+  .xestion-pacientes button:focus-visible,
+  .xestion-pacientes a:focus-visible,
+  .xestion-doctores button:focus-visible,
+  .xestion-doctores a:focus-visible,
+  nav button:focus-visible {
+    @apply outline-2 outline-offset-2 outline-[#14543a];
+  }
+
+  .xestion-pacientes .btn-guardar:focus-visible,
+  .xestion-doctores .btn-guardar:focus-visible,
+  nav button:focus-visible {
+    @apply outline-[#ffe66d];
+  }
+
+  .xestion-pacientes .campo input:focus-visible,
+  .xestion-pacientes .campo select:focus-visible,
+  .xestion-doctores .campo input:focus-visible,
+  .xestion-doctores .campo select:focus-visible {
+    @apply outline-2 outline-offset-1 outline-[#14543a];
+  }
+
+  .xestion-pacientes h4,
+  .xestion-doctores h4 {
+    @apply mb-4 rounded bg-[#14543a] px-3 py-2 font-semibold text-white;
+  }
+
+  .cabecera-informe {
+    @apply mb-4 flex items-center justify-between gap-4 rounded bg-[#14543a] px-3 py-2;
+  }
+
+  .cabecera-informe h4 {
+    @apply mb-0 flex-1 bg-transparent p-0;
+  }
+
+  .btn-informe {
+    @apply inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded border border-white/40 bg-white/10 p-2 text-white transition-colors duration-200;
+  }
+
+  .btn-informe svg,
+  .xestion-citas .citas-boton-informe svg {
+    @apply h-5 w-5;
+  }
+
+  .btn-informe:focus-visible {
+    @apply outline-2 outline-offset-2 outline-[#ffe66d];
+  }
+
+  .btn-informe:hover,
+  .xestion-citas .citas-boton-informe:hover {
+    @apply bg-white/20;
+  }
+
+  .btn-informe:disabled,
+  .btn-informe:disabled:hover,
+  .xestion-citas .citas-boton-informe:disabled {
+    @apply cursor-not-allowed bg-[#aaa];
+  }
+
+  .xestion-doctores {
+    @apply box-border w-full min-w-0 rounded-lg bg-white p-8 shadow-[0_2px_10px_rgba(0,0,0,0.05)];
+  }
+
+  .xestion-doctores .campo > label,
+  .xestion-doctores .campo legend {
+    @apply font-medium;
+  }
+
+  .xestion-doctores .campo input:not([type="radio"]),
+  .xestion-doctores .campo select {
+    @apply box-border h-[2.75rem] w-full min-w-0 rounded border border-[var(--color-borde)] p-2;
+  }
+
+  .xestion-doctores .campo select {
+    @apply bg-white;
+  }
+
+  .xestion-doctores .campo select:disabled,
+  .xestion-doctores .campo input:disabled {
+    @apply bg-[#eaf2ed] text-[#555];
+  }
+
+  .xestion-doctores .campo input.incorrecto {
+    @apply border-2 border-[#e3342f];
+  }
+
+  .xestion-doctores .erro-campo,
+  .xestion-doctores .mensaxe-erro {
+    @apply text-[#e3342f];
+  }
+
+  .xestion-doctores .campo-colexiado {
+    @apply m-0 border-0 p-0 text-center;
+  }
+
+  .xestion-doctores .fila-colexiado {
+    @apply flex justify-center;
+  }
+
+  .xestion-doctores .campo-colexiado span {
+    @apply flex justify-center gap-4;
+  }
+
+  .xestion-doctores .campo-colexiado label {
+    @apply inline-flex min-h-[2.75rem] items-center gap-[0.35rem];
+  }
+
+  .xestion-doctores .form-acciones {
+    @apply flex justify-center gap-3;
+  }
+
+  .xestion-doctores .btn-guardar,
+  .xestion-doctores .btn-secundario {
+    @apply min-h-[2.6rem] cursor-pointer rounded border-0 px-4 py-2 font-semibold;
+  }
+
+  .xestion-doctores .btn-guardar {
+    @apply bg-[#14543a] text-white;
+  }
+
+  .xestion-doctores .btn-guardar:hover {
+    @apply bg-[#0f4530];
+  }
+
+  .xestion-doctores .btn-secundario {
+    @apply border border-[var(--color-borde)] bg-white text-inherit;
+  }
+
+  .xestion-doctores .mensaxe-erro {
+    @apply m-0;
+  }
+
+  .xestion-doctores .celda-acciones {
+    @apply whitespace-nowrap text-center;
+  }
+
+  .xestion-doctores .btn-accion {
+    @apply mx-1 cursor-pointer rounded border border-[var(--color-borde)] bg-transparent px-3 py-2;
+  }
+
+  .xestion-doctores .lista-vacia {
+    @apply mt-4;
+  }
+
+  /* Reglas especificas del formulario y listado de citas. */
+  .xestion-citas {
+    @apply box-border w-full min-w-0 rounded-lg bg-white p-8 shadow-[0_2px_10px_rgba(0,0,0,0.05)];
+  }
+
+  .xestion-citas > h4,
+  .xestion-citas .citas-cabecera-lista h4 {
+    @apply mb-4 rounded bg-[#14543a] px-3 py-2 font-semibold text-white;
+  }
+
+  .xestion-citas .citas-grid {
+    @apply grid grid-cols-3 gap-4;
+  }
+
+  .xestion-citas .citas-campo {
+    @apply flex min-w-0 flex-col gap-[0.4rem];
+  }
+
+  .xestion-citas .citas-campo label {
+    @apply font-medium;
+  }
+
+  .xestion-citas .centrado {
+    @apply text-center;
+  }
+
+  .xestion-citas .citas-campo input,
+  .xestion-citas .citas-campo select,
+  .xestion-citas .citas-campo textarea {
+    @apply box-border min-h-[2.75rem] w-full min-w-0 rounded border border-[var(--color-borde)] bg-white p-2 text-[0.95rem] text-[#333];
+  }
+
+  .xestion-citas .citas-campo input:disabled,
+  .xestion-citas .citas-campo select:disabled {
+    @apply bg-[#eaf2ed] text-[#555];
+  }
+
+  .xestion-citas .citas-campo textarea {
+    @apply min-h-24 resize-y;
+  }
+
+  .xestion-citas .citas-campo input:focus-visible,
+  .xestion-citas .citas-campo select:focus-visible,
+  .xestion-citas .citas-campo textarea:focus-visible {
+    @apply outline-2 outline-offset-1 outline-[#14543a];
+  }
+
+  .xestion-citas .citas-campo-motivo,
+  .xestion-citas .citas-campo-observaciones {
+    @apply col-span-3;
+  }
+
+  .xestion-citas .citas-formulario {
+    @apply mb-8 flex flex-col gap-4;
+  }
+
+  .xestion-citas .citas-acciones-formulario {
+    @apply flex flex-wrap justify-center gap-3;
+  }
+
+  .xestion-citas .citas-boton-principal,
+  .xestion-citas .citas-boton-secundario,
+  .xestion-citas .citas-boton-actualizar,
+  .xestion-citas .citas-boton-accion {
+    @apply inline-flex cursor-pointer items-center justify-center rounded border border-[var(--color-borde)] px-4 py-2 font-semibold transition-colors;
+  }
+
+  .xestion-citas .citas-boton-principal {
+    @apply border-transparent bg-[#14543a] text-white;
+  }
+
+  .xestion-citas .citas-boton-principal:hover {
+    @apply bg-[#0f4530];
+  }
+
+  .xestion-citas .citas-boton-principal:disabled,
+  .xestion-citas .citas-boton-principal:disabled:hover,
+  .xestion-citas .citas-boton-actualizar:disabled {
+    @apply cursor-not-allowed bg-[#cfe0d6] text-[#777] opacity-70;
+  }
+
+  .xestion-citas .citas-boton-secundario,
+  .xestion-citas .citas-boton-actualizar,
+  .xestion-citas .citas-boton-accion {
+    @apply bg-white text-[#333];
+  }
+
+  .xestion-citas .citas-boton-actualizar {
+    @apply shrink-0;
+  }
+
+  .xestion-citas .citas-boton-secundario:hover,
+  .xestion-citas .citas-boton-accion:hover {
+    @apply bg-[#e8f0ea];
+  }
+
+  .xestion-citas .citas-boton-principal:focus-visible,
+  .xestion-citas .citas-boton-secundario:focus-visible,
+  .xestion-citas .citas-boton-actualizar:focus-visible,
+  .xestion-citas .citas-boton-accion:focus-visible {
+    @apply outline-2 outline-offset-2 outline-[#14543a];
+  }
+
+  .xestion-citas .citas-cabecera-lista {
+    @apply mb-4 flex items-center justify-between gap-2 rounded bg-[#14543a] px-3 py-2;
+  }
+
+  .xestion-citas .citas-cabecera-lista h4 {
+    @apply mb-0 flex-1 bg-transparent p-0;
+  }
+
+  .xestion-citas .citas-boton-informe {
+    @apply inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded border border-white/40 bg-white/10 p-2 text-white transition-colors;
+  }
+
+  .xestion-citas .citas-boton-informe:focus-visible {
+    @apply outline-2 outline-offset-2 outline-[#14543a];
+  }
+
+  .xestion-citas .citas-boton-informe:disabled {
+    @apply cursor-not-allowed bg-[#aaa];
+  }
+
+  .xestion-citas .citas-boton-actualizar:hover {
+    @apply bg-white/20;
+  }
+
+  .xestion-citas .citas-cabecera-lista {
+    @apply items-center;
+  }
+
+  .xestion-citas .citas-tabla-wrapper {
+    @apply overflow-x-auto;
+  }
+
+  .xestion-citas table {
+    @apply mt-0 w-full min-w-[850px] border-collapse text-[0.85rem];
+  }
+
+  .xestion-citas th,
+  .xestion-citas td {
+    @apply border border-[var(--color-borde)] p-[0.7rem] text-left;
+  }
+
+  .xestion-citas th {
+    @apply bg-[#eef5f1] text-center font-semibold;
+  }
+
+  .xestion-citas tbody tr:hover {
+    @apply bg-[#eef5f1];
+  }
+
+  .xestion-citas .citas-celda-acciones {
+    @apply whitespace-nowrap text-center;
+  }
+
+  .xestion-citas .citas-boton-accion {
+    @apply mx-1 px-3 py-2;
+  }
+
+  .xestion-citas .citas-erro {
+    @apply mb-4 rounded border border-[#e3342f] bg-[rgba(227,52,47,0.08)] p-3 text-[#b4231d];
+  }
+
+  .xestion-citas .citas-mensaje-lista {
+    @apply py-4 text-center text-[#555];
+  }
+
+  .xestion-citas .citas-aviso {
+    @apply rounded bg-[#eef5f1] p-3 text-sm text-[#555];
+  }
+}
+
+/* En tablet y movil se reducen columnas, espacios y anchos minimos de las tablas. */
+@media (max-width: 768px) {
+  .xestion-pacientes,
+  .xestion-doctores,
+  .xestion-citas {
+    @apply p-4;
+  }
+
+  .xestion-pacientes .fila,
+  .xestion-doctores .fila {
+    @apply grid-cols-1 gap-2;
+  }
+
+  .xestion-doctores .form-acciones {
+    @apply flex-wrap;
+  }
+
+  .xestion-citas .citas-grid {
+    @apply grid-cols-2 gap-3;
+  }
+
+  .xestion-citas .citas-campo-motivo,
+  .xestion-citas .citas-campo-observaciones {
+    @apply col-span-2;
+  }
+
+  .xestion-pacientes table,
+  .xestion-doctores table,
+  .xestion-citas table {
+    @apply min-w-[700px];
+  }
+}
+
+/* En moviles estrechos la ficha de citas pasa a una sola columna. */
+@media (max-width: 480px) {
+  .xestion-citas .citas-grid {
+    @apply grid-cols-1;
+  }
+
+  .xestion-citas .citas-campo-motivo,
+  .xestion-citas .citas-campo-observaciones {
+    @apply col-span-1;
+  }
 }

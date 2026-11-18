@@ -1,48 +1,33 @@
-// ===========================================================================
-//  src/api/citas.js
-//  Capa de ACCESO A DATOS de citas médicas (cliente de la API REST).
-//
-//  OJO: una cita NO guarda el nombre del paciente ni el del doctor, guarda
-//  sus identificadores (_id de MongoDB). El backend, al leerlas, hace un
-//  "populate" y nos devuelve ya rellenos los datos del paciente y del doctor.
-// ===========================================================================
+import axios from "axios"
 
-import axios from "axios";
+// Punto de entrada comun para las peticiones HTTP de citas.
+const API_URL = "http://localhost:3000/api/citas"
 
-const API_URL = "http://localhost:3000/api";
+// Devuelve las citas que coinciden con los filtros opcionales y propaga errores HTTP.
+export async function getCitas(filtros = {}) {
+  // Axios envia los identificadores como query params; si no hay filtros, lista todas.
+  // params convierte el objeto en query string: /api/citas?pacienteDNI=12345678Z
+  const res = await axios.get(API_URL, { params: filtros })
+  return res.data
+}
 
-// --------------------------- C de CREATE ----------------------------------
-// Crea una cita. Se envía:
-// { pacienteId, doctorId, fecha, hora, motivo, observacions, estado }
+// Crea una cita; cita debe incluir las referencias y campos obligatorios del esquema.
 export async function saveCita(cita) {
-    const res = await axios.post(`${API_URL}/citas`, cita);
-    return res.data;
+  // Axios serializa cita como JSON en el cuerpo de la peticion POST.
+  const res = await axios.post(API_URL, cita)
+  return res.data
 }
 
-// ---------------------------- R de READ -----------------------------------
-// Devuelve todas las citas, con paciente y doctor ya incrustados (populate)
-// y ordenadas por fecha y hora.
-export async function getCitas() {
-    const res = await axios.get(`${API_URL}/citas`);
-    return res.data;
+// Actualiza la cita indicada por su identificador de MongoDB.
+export async function updateCita(id, cita) {
+  // id selecciona el documento y cita contiene los campos nuevos.
+  const res = await axios.put(`${API_URL}/${id}`, cita)
+  return res.data
 }
 
-// Devuelve UNA cita por su _id de MongoDB.
-export async function getCitaById(id) {
-    const res = await axios.get(`${API_URL}/citas/${id}`);
-    return res.data;
-}
-
-// --------------------------- U de UPDATE ----------------------------------
-// Modifica la cita cuyo _id se pasa.
-export async function modifyCita(id, cita) {
-    const res = await axios.put(`${API_URL}/citas/${id}`, cita);
-    return res.data;
-}
-
-// --------------------------- D de DELETE ----------------------------------
-// Borra la cita cuyo _id se pasa.
+// Elimina una cita por su identificador de MongoDB.
 export async function deleteCita(id) {
-    const res = await axios.delete(`${API_URL}/citas/${id}`);
-    return res.data;
+  // La peticion DELETE solo necesita el identificador de la cita en la URL.
+  const res = await axios.delete(`${API_URL}/${id}`)
+  return res.data
 }

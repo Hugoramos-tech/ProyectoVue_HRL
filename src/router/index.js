@@ -1,53 +1,37 @@
-// ===========================================================================
-//  src/router/index.js   (UD3 - Enrutamiento)
-//
-//  El router asocia una URL del navegador con el componente que se tiene que
-//  mostrar dentro del <router-view /> de App.vue.
-//  Es una SPA: al cambiar de página NO se recarga el navegador.
-// ===========================================================================
-
+// Tabla de rutas: asocia cada URL con el componente que se dibuja en el router-view.
 import { createRouter, createWebHistory } from "vue-router";
 
-// Importamos todos los componentes que actúan como "páginas"
-import IniCio from '../components/IniCio.vue';
-import ServizosMedicos from '../components/ServizosMedicos.vue';
-import XestionPacientes from '../components/XestionPacientes.vue';
-import XestionDoctores from '../components/XestionDoctores.vue';
-import XestionCitas from '../components/XestionCitas.vue';
-import SobreNos from '../components/SobreNos.vue';
-import AvisoLegal from '../components/AvisoLegal.vue';
-import PoliticaPrivacidad from '../components/PoliticaPrivacidad.vue';
-import NotFound from '../components/NotFound.vue';
+// Importa las pantallas que se muestran en el espacio <router-view> de App.vue.
+import Inicio from '../components/Inicio.vue'
+import Servicios from '../components/Servicios.vue'
+import XestionPacientes from '../components/XestionPacientes.vue'
+import XestionDoctores from '../components/XestionDoctores.vue'
+import Citas from '../components/Citas.vue'
+import SobreNos from '../components/SobreNos.vue'
+import AvisoLegal from '../components/AvisoLegal.vue'
+import PoliticaPrivacidad from '../components/PoliticaPrivacidad.vue'
+import NotFound from '../components/NotFound.vue'
 
-// Tabla de rutas. Cada ruta tiene:
-//   path      -> lo que se escribe en la barra de direcciones
-//   name      -> nombre interno (sirve para $router.resolve({ name: ... }))
-//   component -> el componente que se dibuja
+// Cada ruta relaciona una URL con un nombre estable y un componente de pantalla.
 const routes = [
-    { path: '/', name: 'IniCio', component: IniCio },
-    { path: '/servizos-medicos', name: 'ServizosMedicos', component: ServizosMedicos },
-    { path: '/xestionpacientes', name: 'XestionPacientes', component: XestionPacientes },
-    { path: '/xestion-doctores', name: 'XestionDoctores', component: XestionDoctores },
-    { path: '/xestion-citas', name: 'XestionCitas', component: XestionCitas },
-    { path: '/sobrenos', name: 'SobreNos', component: SobreNos },
-    { path: '/avisolegal', name: 'AvisoLegal', component: AvisoLegal },
+    { path: '/', name: 'Inicio', component: Inicio },
+    { path: '/servicios', name: 'Servicios', component: Servicios },
+    { path: '/XestionPacientes', name: 'XestionPacientes', component: XestionPacientes },
+    { path: '/XestionDoctores', name: 'XestionDoctores', component: XestionDoctores },
+    { path: '/citas', name: 'Citas', component: Citas},
+    { path: '/SobreNos', name: 'SobreNos', component: SobreNos },
+    { path: '/avisoLegal', name: 'AvisoLegal', component: AvisoLegal},
     { path: '/politica-privacidad', name: 'PoliticaPrivacidad', component: PoliticaPrivacidad },
-
-    // Ruta COMODÍN: tiene que ir siempre la última.
-    // Captura cualquier dirección que no coincida con las anteriores
-    // y muestra la página de error 404.
-    { path: '/:pathMatch(.*)*', name: 'NotFound', component: NotFound },
+    // Comodin al final: recoge las URLs que no coinciden con ninguna ruta anterior.
+    // Para anadir una pantalla, importarla arriba y colocar su linea antes de esta.
+    { path: '/:pathMatch(.*)', name: 'NotFound', component: NotFound }
 ]
 
-const router = createRouter({
-    // createWebHistory -> URLs limpias, sin almohadilla (/xestion-citas)
+// createWebHistory utiliza rutas limpias; el servidor debe servir index.html para ellas.
+const router = createRouter ({
     history: createWebHistory(),
-    routes,
-
-    // Al cambiar de página, volvemos siempre arriba del todo.
-    scrollBehavior() {
-        return { top: 0 };
-    }
+    routes
 })
 
-export default router;
+// main.js instala este router en la aplicacion Vue.
+export default router

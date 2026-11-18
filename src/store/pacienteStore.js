@@ -1,58 +1,33 @@
-// ===========================================================================
-//  src/store/pacienteStore.js   (UD8 - Pinia. Estados centralizados)
-//
-//  Un "store" es una caja de datos COMPARTIDA por todos los componentes.
-//  Sirve para no tener que ir pasando props de padres a hijos: cualquier
-//  componente puede leer o escribir aquí.
-// ===========================================================================
+import { defineStore } from "pinia";
 
-// Importamos defineStore de Pinia para crear un almacén de datos (store)
-import { defineStore } from 'pinia'
-
-// Creamos el store de pacientes.
-// 'paciente' es el identificador único de este store (no puede repetirse).
-export const usepacienteStore = defineStore('paciente', {
-
-    // STATE: contiene los datos que queremos compartir
-    // entre los diferentes componentes de Vue.
-    state: () => ({
-        pacientes: [],   // lista completa de pacientes
-        dnipac: null,    // DNI del paciente seleccionado
-        nomepac: null,   // nombre del paciente seleccionado
-        apelpac: null    // apellidos del paciente seleccionado
-    }),
-
-    // GETTERS: datos calculados a partir del state (como los computed).
-    getters: {
-        // Devuelve "Apellidos, Nombre" del paciente seleccionado.
-        nomeCompleto: (state) => {
-            if (!state.dnipac) return '';
-            return `${state.apelpac}, ${state.nomepac}`;
-        },
-        // Cuántos pacientes hay guardados en el store.
-        totalPacientes: (state) => state.pacientes.length
+// defineStore crea un almacen global reutilizable desde distintos componentes.
+// El primer argumento es su identificador unico; el segundo define estado y acciones.
+// El estado vive en memoria: al recargar la pagina la seleccion se pierde.
+export const usepacienteStore = defineStore("paciente", {
+  // El estado contiene los datos del paciente seleccionado y puede consultarse
+  // desde cualquier componente que use usepacienteStore().
+  state: () => ({
+    pacientes: [],
+    idPaciente: null,
+    dnipac: null,
+    nomepac: null,
+    apelpac: null,
+  }),
+  // Las acciones son funciones que modifican el estado compartido.
+  actions: {
+    // Copia al store los campos usados por las pantallas que dependen del paciente.
+    seleccionarPaciente(paciente) {
+      this.idPaciente = paciente._id ?? null;
+      this.dnipac = paciente.dnipac;
+      this.nomepac = paciente.nomepac;
+      this.apelpac = paciente.apelpac;
     },
-
-    // ACTIONS: funciones que MODIFICAN el state.
-    actions: {
-        // Guarda en el store la lista completa de pacientes.
-        gardarPacientes(lista) {
-            this.pacientes = lista;
-        },
-
-        // Recibe un objeto paciente como parámetro
-        // y guarda sus datos en el store de Pinia.
-        seleccionarPaciente(paciente) {
-            this.dnipac = paciente.dnipac;   // Guardamos el dni
-            this.nomepac = paciente.nomepac; // Guardamos el nombre
-            this.apelpac = paciente.apelpac; // Guardamos el apellido
-        },
-
-        // Deja vacío el paciente seleccionado.
-        limpiarPaciente() {
-            this.dnipac = null;
-            this.nomepac = null;
-            this.apelpac = null;
-        }
-    }
+    // Limpia la seleccion cuando ya no debe quedar un paciente activo.
+    limpiarPaciente() {
+      this.idPaciente = null;
+      this.dnipac = null;
+      this.nomepac = null;
+      this.apelpac = null;
+    },
+  },
 });

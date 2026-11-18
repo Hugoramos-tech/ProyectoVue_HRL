@@ -1,24 +1,16 @@
 <!doctype html>
-<!-- ==========================================================================
-     index.html
-     Única página HTML del proyecto (es una SPA, Single Page Application).
-     Vue se "engancha" al <div id="app"> y a partir de ahí dibuja todo.
-     El lang="gl" indica al navegador que el contenido está en gallego.
-========================================================================== -->
-<html lang="gl">
+<html lang="en">
   <head>
+    <!-- Metadatos de codificacion, icono, escala adaptable y titulo de la pestaña. -->
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <!-- viewport: imprescindible para que el diseño responsive funcione -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="XestiónApp - Xestión de pacientes, doctores e citas de Sanidade Teis" />
-    <title>HugoRamosLopez_Vue - XestiónApp</title>
+    <title>guisandemoreira</title>
   </head>
   <body>
-    <!-- Aquí dentro monta Vue toda la aplicación (ver src/main.js) -->
+    <!-- Vue monta aqui la aplicacion creada en src/main.js. -->
     <div id="app"></div>
-
-    <!-- type="module" permite usar import/export en el navegador -->
+    <!-- Vite carga el punto de entrada como modulo JavaScript. -->
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

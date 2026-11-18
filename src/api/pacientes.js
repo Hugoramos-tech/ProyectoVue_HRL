@@ -1,54 +1,42 @@
-// ===========================================================================
-//  src/api/pacientes.js
-//  Capa de ACCESO A DATOS de pacientes (el "cliente" de nuestra API REST).
-//
-//  Aquí NO hay nada de Vue: solo funciones que hablan con el backend usando
-//  axios. Los componentes (.vue) importan estas funciones y se despreocupan
-//  de las URLs, de los verbos HTTP y del formato de la respuesta.
-// ===========================================================================
+// Axios deja la respuesta en res.data y lanza una excepcion si el estado HTTP es de error.
+import axios from "axios"
 
-import axios from "axios"; // librería para hacer peticiones HTTP (GET, POST, PUT, DELETE)
-
-// Dirección base de nuestra API.
-// En producción se cambiaría por la URL del servidor real:
-// const API_URL = "https://servidor.com/api";
+// URL raiz de la API; el resto de rutas se agrega en cada operacion.
 const API_URL = "http://localhost:3000/api";
 
-// --------------------------- C de CREATE ----------------------------------
-// Guarda un paciente nuevo. Envía el objeto completo en el cuerpo (body).
-export async function savePaciente(paciente) {
-    const res = await axios.post(`${API_URL}/pacientes`, paciente);
-    return res.data; // axios mete la respuesta del servidor dentro de .data
-}
-
-// ---------------------------- R de READ -----------------------------------
-// Devuelve TODOS los pacientes, ordenados por apellidos (A-Z).
+// Recupera pacientes y los ordena alfabeticamente por apellido para las listas.
 export async function getPacientes() {
-    const res = await axios.get(`${API_URL}/pacientes`);
-
-    // localeCompare compara textos respetando acentos y ñ del español.
-    res.data.sort((a, b) =>
-        a.apelpac.localeCompare(b.apelpac, "es", { sensitivity: "base" }));
-
-    return res.data;
+    // La respuesta trae todos los registros; se ordenan antes de devolverlos.
+    const res = await axios.get(`${API_URL}/pacientes`)
+    // localeCompare respeta el alfabeto castellano y sensitivity base ignora mayusculas.
+    res.data.sort((a, b) => a.apelpac.localeCompare(b.apelpac, "es", { sensitivity: "base" }))
+    return res.data
 }
 
-// Devuelve UN paciente buscándolo por su DNI.
-export async function getPacienteByDni(dni) {
-    const res = await axios.get(`${API_URL}/pacientes/${dni}`);
-    return res.data;
+// Crea un paciente con el objeto del formulario y devuelve el documento guardado.
+export async function savePaciente(paciente) {
+    // paciente contiene el formulario y Axios lo serializa en el cuerpo JSON.
+    const res = await axios.post(`${API_URL}/pacientes`, paciente)
+    return res.data
 }
 
-// --------------------------- U de UPDATE ----------------------------------
-// Modifica el paciente cuyo DNI se pasa, con los datos del segundo parámetro.
-export async function modifyPaciente(dni, paciente) {
-    const res = await axios.put(`${API_URL}/pacientes/${dni}`, paciente);
-    return res.data;
-}
-
-// --------------------------- D de DELETE ----------------------------------
-// Borra el paciente cuyo DNI se pasa.
+// Elimina un paciente identificado por su DNI.
 export async function deletePaciente(dni) {
-    const res = await axios.delete(`${API_URL}/pacientes/${dni}`);
-    return res.data;
+    // DNI es el identificador que utiliza el backend para localizar al paciente.
+    const res = await axios.delete(`${API_URL}/pacientes/${dni}`)
+    return res.data
+}
+
+// Actualiza los campos de un paciente identificado por su DNI actual.
+export async function modifyPaciente(dni, paciente) {
+    // DNI selecciona el documento y paciente contiene los valores nuevos.
+    const res = await axios.put(`${API_URL}/pacientes/${dni}`, paciente)
+    return res.data
+}
+
+// Busca un solo paciente por DNI; Axios rechaza la promesa si el backend responde 404.
+export async function getPacienteByDni(dni) {
+    // Una respuesta 404 rechaza esta promesa y debe tratarse en el componente llamador.
+    const res = await axios.get(`${API_URL}/pacientes/${dni}`)
+    return res.data
 }

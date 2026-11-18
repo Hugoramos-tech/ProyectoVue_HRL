@@ -1,31 +1,26 @@
-// ===========================================================================
-//  src/api/municipios.js
-//  Lee el catálogo de provincias y municipios de España.
-//  El backend lo sirve desde backend/data/municipios.json.
-// ===========================================================================
+import axios from 'axios'
 
-import axios from 'axios';
+// Endpoint de catalogos que contiene provincias y municipios.
+const URL = 'http://localhost:3000/api/municipios'
 
-// Dirección de nuestra API
-const URL = 'http://localhost:3000/api/municipios';
-
-// Obtener todas las provincias -> array de objetos { id, nm }
+// Obtiene la lista de provincias para mostrarla en el formulario de pacientes.
 export async function obtenerProvincias() {
-    const respuesta = await axios.get(URL);
+    // El mismo JSON trae municipios, aunque esta funcion solo expone sus provincias.
+    const respuesta = await axios.get(URL)
 
-    return respuesta.data.provincias;
+    return respuesta.data.provincias
 }
 
-// Obtener todos los municipios de UNA provincia.
-// Truco del fichero de datos: el id de un municipio empieza por el id de su
-// provincia (por ejemplo Vigo = "36057" pertenece a Pontevedra = "36").
-// Por eso filtramos comparando los dos primeros caracteres del id.
+// Filtra el catalogo de municipios por el prefijo de dos digitos de la provincia.
+// idProvincia debe ser el codigo id recibido en obtenerProvincias().
 export async function obtenerMunicipios(idProvincia) {
-    const respuesta = await axios.get(URL);
+    // Se obtiene el catalogo completo y se filtra en el cliente por provincia.
+    const respuesta = await axios.get(URL)
 
-    const municipios = respuesta.data.municipios;
-
+    // Coleccion de origen antes de seleccionar municipios del codigo provincial pedido.
+    const municipios = respuesta.data.municipios
+    // El id de cada municipio empieza por el de su provincia: Vigo, 36057, pertenece a 36.
     return municipios.filter(
-        municipio => municipio.id.substring(0, 2) === idProvincia
-    );
+        municipio => municipio.id.substring(0, 2) === idProvincia,
+    )
 }

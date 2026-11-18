@@ -1,138 +1,67 @@
-// ===========================================================================
-//  backend/server.js
-//  SERVIDOR de la aplicación (API REST con Express + MongoDB con Mongoose).
-//
-//  Esquema de funcionamiento del proyecto:
-//
-//    Navegador (Vue + Vite, puerto 5173)
-//            |  axios
-//            v
-//    API REST (Express, puerto 3000)   <-- ESTE FICHERO
-//            |  mongoose
-//            v
-//    MongoDB (contenedor de Docker, puerto 27017)  <-- se ve en Compass
-//
-//  Se arranca con:  npm start   (levanta Vite y este servidor a la vez)
-//               o:  npm run backend  (solo este servidor)
-// ===========================================================================
-
+// Servidor Express que publica la API REST y la conecta con MongoDB mediante Mongoose.
+// El cliente de Vite consume estas rutas desde el puerto 5173.
 import express from "express";
-import fs from "fs";               // para leer ficheros JSON del disco
-import path from "path";           // para construir rutas de ficheros
-import { fileURLToPath } from "url";
-import cors from "cors";           // evita bloqueos entre servidores (puerto 5173 -> 3000)
-import "dotenv/config";            // para poder usar variables de entorno (.env)
-import mongoose from "mongoose";   // importa módulo de conexión a MongoDB
+import fs from "fs";
+import cors from "cors";
+import "dotenv/config";
+import mongoose from 'mongoose' //Importa modulo de conexión a mongoDB
 
-// Importamos los ficheros de rutas (un fichero por cada colección)
-import pacientesRutas from './rutas/pacientes.rutas.js';
-import doctoresRutas from './rutas/doctores.rutas.js';
-import citasRutas from './rutas/citas.rutas.js';
+// Un fichero de rutas por coleccion, para no concentrar aqui la logica de los CRUD.
+import pacientesRutas from './rutas/pacientes.rutas.js'
 
-// --------------------------------------------------------------------------
-// Carpeta donde está este fichero.
-// Con módulos ES (import/export) no existe __dirname, así que lo calculamos.
-// Gracias a esto los JSON se leen bien aunque arranquemos el servidor desde
-// otra carpeta distinta a la raíz del proyecto.
-// --------------------------------------------------------------------------
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CARPETA_DATOS = path.join(__dirname, "data");
+import doctoresRutas from './rutas/doctores.rutas.js'
+import citasRutas from './rutas/citas.rutas.js'
 
-// --------------------------------------------------------------------------
-// Creamos la aplicación Express y le añadimos los "middlewares"
-// (funciones por las que pasa toda petición antes de llegar a su ruta).
-// --------------------------------------------------------------------------
-const app = express();
-app.use(cors());           // permite que el front (5173) llame al back (3000)
-app.use(express.json());   // para poder recibir json en el body de las peticiones
-
-// Montamos las rutas: todo lo que empiece por /api/pacientes lo atiende
-// pacientes.rutas.js, y así con el resto.
-app.use('/api/pacientes', pacientesRutas);
-app.use('/api/doctores', doctoresRutas);
-app.use('/api/citas', citasRutas);
-
-// USA EL PUERTO DEFINIDO EN LAS VARIABLES DE ENTORNO, SI NO COGE EL 3000
+// Puerto HTTP en el que escucha Express; si no se define, se usa el valor habitual 3000.
 const PORT = process.env.PORT || 3000;
+// URI de MongoDB leida del entorno para no guardar credenciales de conexion en el codigo.
+const MONGO_URI = process.env.MONGO_URI;
+// Aplicacion Express compartida por todas las rutas del backend.
+const app = express();
+// Permite peticiones desde el cliente Vite y convierte cuerpos JSON en req.body.
+app.use(cors());
+app.use(express.json());
 
-// URL de conexión con MongoDB. Está en el fichero .env:
-// MONGO_URI="mongodb://admin:abc123@localhost:27017/bbdd?authSource=admin"
-//
-// El "||" es una red de seguridad: si no existe el fichero .env (por ejemplo
-// al descargar el proyecto de GitHub, donde no se sube por llevar contraseñas),
-// se usa la misma conexión que crea el docker-compose.yaml y la aplicación
-// sigue funcionando sin tener que configurar nada.
-const MONGO_URI = process.env.MONGO_URI
-    || "mongodb://admin:abc123@localhost:27017/bbdd?authSource=admin";
+// Impide que las rutas de datos accedan a Mongoose mientras MongoDB no este conectado.
+// readyState con valor 1 significa conexion lista; next() cede el paso a la ruta.
+function requireDatabase(req, res, next) {
+  if (mongoose.connection.readyState !== 1) {
+    return res.status(503).json({ mensaje: "La base de datos no está disponible." });
+  }
 
-// --------------------------------------------------------------------------
-// Rutas de CATÁLOGOS (datos fijos que NO están en MongoDB, sino en ficheros
-// JSON dentro de backend/data). Se leen con el módulo fs.
-// --------------------------------------------------------------------------
-
-// Provincias y municipios de España
-app.get('/api/municipios', (req, res) => {
-    console.log("peticion recibida: municipios");
-
-    try {
-        // Leer el fichero JSON (devuelve texto)
-        const datos = fs.readFileSync(path.join(CARPETA_DATOS, "municipios.json"), "utf8");
-
-        // Convertimos el texto JSON en un objeto JavaScript
-        const datosJson = JSON.parse(datos);
-
-        // Enviamos los datos como respuesta al cliente
-        res.json(datosJson);
-    } catch (error) {
-        console.error("Error al leer municipios.json:", error);
-        res.status(500).json({ message: "Error al leer los municipios" });
-    }
-});
-
-// Especialidades médicas
-app.get('/api/especialidades', (req, res) => {
-    console.log("peticion recibida: especialidades");
-
-    try {
-        const datos = fs.readFileSync(path.join(CARPETA_DATOS, "especialidades.json"), "utf8");
-
-        const datosJson = JSON.parse(datos);
-
-        res.json(datosJson);
-    } catch (error) {
-        console.error("Error al leer especialidades.json:", error);
-        res.status(500).json({ message: "Error al leer las especialidades" });
-    }
-});
-
-// Ruta de prueba: sirve para comprobar rápido en el navegador que la API
-// está viva -> http://localhost:3000/api
-app.get('/api', (req, res) => {
-    res.json({
-        mensaxe: "API de XestiónApp funcionando",
-        rutas: ["/api/pacientes", "/api/doctores", "/api/citas",
-                "/api/municipios", "/api/especialidades"]
-    });
-});
-
-// --------------------------------------------------------------------------
-// Arranque: PRIMERO nos conectamos a MongoDB y SOLO SI funciona encendemos
-// el servidor. Así evitamos tener la API funcionando sin base de datos.
-// --------------------------------------------------------------------------
-async function iniciaServer() {
-    try {
-        // conectamos con la base de datos
-        await mongoose.connect(MONGO_URI);
-        console.log("Conectado a MongoDB");
-
-        // iniciamos el servidor
-        app.listen(PORT, () => {
-            console.log(`Servidor iniciado en el http://localhost:${PORT}`);
-        });
-    } catch (error) {
-        console.error("Error al conectar con MongoDB:", error.message);
-        console.error("¿Está levantado el contenedor? ->  docker compose up -d");
-    }
+  next();
 }
 
-iniciaServer();
+// Las rutas que consultan modelos requieren una conexion activa a la base de datos.
+app.use("/api/pacientes", requireDatabase, pacientesRutas);
+app.use("/api/doctores", requireDatabase, doctoresRutas);
+app.use("/api/citas", requireDatabase, citasRutas);
+
+// Los catalogos JSON son estaticos y pueden servirse aunque MongoDB no este disponible.
+app.get("/api/municipios", (req, res) => {
+  // La ruta se resuelve respecto a este archivo, no al directorio desde donde se lance Node.
+  // datos conserva el texto JSON que se analiza y envia como respuesta HTTP.
+  const datos = fs.readFileSync(new URL("./data/municipios.json", import.meta.url), "utf-8");
+  res.json(JSON.parse(datos));
+});
+
+app.get("/api/especialidades", (req, res) => {
+  // datos contiene el catalogo estatico que se devuelve en formato JSON.
+  const datos = fs.readFileSync(new URL("./data/especialidades.json", import.meta.url), "utf-8");
+  res.json(JSON.parse(datos));
+});
+
+// Inicia HTTP sin esperar a MongoDB, para que los catalogos sigan disponibles ante una caida.
+app.listen(PORT, () => {
+  console.log(`Servidor funcionando en http://localhost:${PORT}`);
+});
+
+if (!MONGO_URI) {
+  // Sin URI las rutas protegidas responderan 503; el servidor y los JSON siguen activos.
+  console.error("MONGO_URI no está configurado; las rutas de base de datos no estarán disponibles.");
+} else {
+  // Registra la conexion y deja el error visible si no se puede establecer.
+  mongoose.connect(MONGO_URI)
+    .then(() => console.log("Conectado a mongoDB"))
+    .catch((error) => console.error("Error de conexión a MongoDB:", error));
+}

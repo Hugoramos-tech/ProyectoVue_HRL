@@ -1,159 +1,125 @@
-// ===========================================================================
-//  backend/rutas/doctores.rutas.js
-//
-//  Rutas (endpoints) de la API REST para los doctores. Cuelgan de
-//  /api/doctores porque en server.js se monta así:
-//        app.use('/api/doctores', doctoresRutas)
-//
-//  MUY IMPORTANTE el ORDEN de las rutas: Express las comprueba de arriba a
-//  abajo. Por eso "/especialidade/:espedoc" va ANTES que "/:iddoc"; si no,
-//  la palabra "especialidade" se tomaría como si fuese un ID de doctor.
-// ===========================================================================
+// Rutas del CRUD de doctores, montadas bajo /api/doctores desde server.js.
+// A diferencia de los pacientes, el doctor se localiza por su _id de MongoDB.
+import express from "express"
+import Doctor from "../modelos/Doctor.js"
 
-import express from "express";
-import Doctor from "../modelos/Doctor.js";
+// Agrupa las operaciones HTTP disponibles para doctores.
+const router = express.Router()
 
-const router = express.Router();
-
-// --------------------------------------------------------------------------
-// READ -> Obtener TODOS los doctores.       GET /api/doctores
-// --------------------------------------------------------------------------
+// GET /api/doctores: devuelve todos los doctores como objetos JavaScript simples.
 router.get("/", async (req, res) => {
-  try {
-    const doctores = await Doctor.find(); // es el SELECT * de SQL
-
-    res.json(doctores);
-  } catch (error) {
-    console.error("Error al obtener doctores:", error);
-    res.status(500).json({
-      message: "Error al obtener doctores",
-    });
-  }
-});
-
-// --------------------------------------------------------------------------
-// READ -> Doctores de UNA especialidad.
-//         GET /api/doctores/especialidade/Cardiología
-// --------------------------------------------------------------------------
-router.get("/especialidade/:espedoc", async (req, res) => {
-  try {
-    const doctores = await Doctor.find({
-      espedoc: req.params.espedoc,
-    });
-
-    res.json(doctores);
-  } catch (error) {
-    console.error("Error al obtener doctores por especialidad:", error);
-    res.status(500).json({
-      message: "Error al obtener doctores por especialidad",
-    });
-  }
-});
-
-// --------------------------------------------------------------------------
-// READ -> Obtener UN doctor por su ID de doctor.   GET /api/doctores/D001
-// --------------------------------------------------------------------------
-router.get("/:iddoc", async (req, res) => {
-  try {
-    const doctor = await Doctor.findOne({
-      iddoc: req.params.iddoc,
-    });
-
-    if (!doctor) {
-      return res.status(404).json({
-        message: "Doctor no encontrado",
-      });
+    try {
+        // Lista de documentos simplificados para enviarlos en la respuesta JSON.
+        const doctores = await Doctor.find().lean()
+        res.json(doctores)
+    } catch (error) {
+        res.status(500).json({ mensaje: ("Error al listar los doctores", error)})
     }
+})
 
-    res.json(doctor);
-  } catch (error) {
-    console.error("Error al obtener doctor:", error);
-    res.status(500).json({
-      message: "Error al obtener doctor",
-    });
-  }
-});
-
-// --------------------------------------------------------------------------
-// CREATE -> Crear un doctor nuevo.          POST /api/doctores
-// --------------------------------------------------------------------------
+// POST /api/doctores: normaliza el movil y crea un documento validado por Mongoose.
 router.post("/", async (req, res) => {
-  try {
-    // No permitimos dos doctores con el mismo ID.
-    const doctorExistente = await Doctor.findOne({
-      iddoc: req.body.iddoc,
-    });
+    try {
+        // Copia el cuerpo para no mutar req.body y quita espacios del numero de contacto.
+        const datosDoctor = {
+            ...req.body,
+            movildoc: String(req.body.movildoc ?? "").replace(/\s+/g, "")
+        };
 
-    if (doctorExistente) {
-      return res.status(400).json({
-        message: "El doctor con este ID ya existe",
-      });
+        // Formato nacional: empieza por 6 o 7 y suma nueve digitos en total.
+        if (!/^[67]\d{8}$/.test(datosDoctor.movildoc)) {
+            return res.status(400).json({
+                mensaje: "El móvil debe empezar por 6 o 7 y tener 9 dígitos"
+            });
+        }
+
+        // Instancia del modelo: Mongoose comprueba los campos obligatorios al guardar.
+        // La instancia vive en memoria hasta que save la escribe en la base de datos.
+        const doctor = new Doctor(datosDoctor)
+
+        // Documento persistido que se devuelve al cliente con estado HTTP 201.
+        const nuevoDoctor = await doctor.save()
+
+        res.status(201).json(nuevoDoctor)
+        
+    } catch (error) {
+        // El codigo 11000 de MongoDB avisa de un valor unico repetido.
+        if (error.code === 11000) {
+            return res.status(409).json({ mensaje: "Ya existe un doctor con ese ID" });
+        }
+
+        if (error.name === "ValidationError") {
+            return res.status(400).json({ mensaje: error.message });
+        }
+
+        res.status(500).json({
+            mensaje: "Error al crear el doctor"
+        })
     }
+})
 
-    // si no existe, se crea el doctor nuevo
-    console.log("Datos recibidos:", req.body);
-    const doctor = new Doctor(req.body);
-
-    const nuevoDoctor = await doctor.save();
-
-    res.status(201).json(nuevoDoctor); // 201 = creado correctamente
-  } catch (error) {
-    console.error("Error al crear doctor:", error);
-
-    res.status(500).json({
-      message: "Error al crear doctor",
-    });
-  }
+// DELETE /api/doctores/:id: busca por el identificador MongoDB del doctor.
+router.delete("/:id", async (req, res) => {
+    try {
+        // Resultado de la busqueda y eliminacion por el _id del documento.
+        const doctor = await Doctor.findByIdAndDelete(req.params.id);
+        if (!doctor) {
+            return res.status(404).json({ mensaje: "Doctor no encontrado" });
+        }
+        res.json({ mensaje: "Doctor eliminado" });
+    } catch (error) {
+        res.status(500).json({ mensaje: "Error al eliminar el doctor", error });
+    }
 });
 
-// --------------------------------------------------------------------------
-// UPDATE -> Modificar un doctor.            PUT /api/doctores/D001
-// --------------------------------------------------------------------------
-router.put("/:iddoc", async (req, res) => {
-  try {
-    const doctor = await Doctor.findOneAndUpdate(
-      { iddoc: req.params.iddoc }, // a quién modificamos
-      req.body,                    // datos nuevos
-      { new: true },               // devuélvemelo ya modificado
-    );
+// PUT /api/doctores/:id: actualiza los campos enviados del doctor.
+router.put("/:id", async (req, res) => {
+    try {
+        // Se trabaja sobre una copia para normalizar el movil sin alterar la peticion.
+        const datosDoctor = { ...req.body };
+        if (datosDoctor.movildoc !== undefined) {
+            datosDoctor.movildoc = String(datosDoctor.movildoc).replace(/\s+/g, "");
+            if (!/^[67]\d{8}$/.test(datosDoctor.movildoc)) {
+                return res.status(400).json({
+                    mensaje: "El móvil debe empezar por 6 o 7 y tener 9 dígitos"
+                });
+            }
+        }
 
-    if (!doctor) {
-      return res.status(404).json({
-        mensaje: "Doctor no encontrado",
-      });
+        // Documento actualizado por _id; runValidators aplica las reglas del esquema.
+        const doctor = await Doctor.findByIdAndUpdate(
+            req.params.id,
+            datosDoctor,
+            { new: true, runValidators: true }
+        );
+
+        if (!doctor) {
+            return res.status(404).json({ mensaje: "Doctor no encontrado" });
+        }
+
+        res.json(doctor);
+        
+    } catch (error) {
+        if (error.code === 11000) {
+            return res.status(409).json({ mensaje: "Ya existe un doctor con ese ID" });
+        }
+        if (error.name === "ValidationError") {
+            return res.status(400).json({ mensaje: error.message });
+        }
+        res.status(500).json({ mensaje: "Error al modificar el doctor" });
     }
-
-    res.json(doctor);
-  } catch (error) {
-    console.error("Error al actualizar doctor:", error);
-    res.status(500).json({
-      mensaje: "Error al actualizar doctor",
-    });
-  }
 });
 
-// --------------------------------------------------------------------------
-// DELETE -> Borrar un doctor.               DELETE /api/doctores/D001
-// --------------------------------------------------------------------------
-router.delete("/:iddoc", async (req, res) => {
-  try {
-    const doctor = await Doctor.findOneAndDelete({
-      iddoc: req.params.iddoc,
-    });
-
-    if (!doctor) {
-      return res.status(404).json({
-        mensaje: "Doctor no encontrado",
-      });
+// GET /api/doctores/:especialidad: filtra doctores por el nombre de especialidad.
+// Va al final porque Express prueba las rutas en orden y esta acepta cualquier valor.
+router.get("/:especialidad", async (req, res) => {
+    try {
+        // Lista de doctores cuya especialidad coincide con el segmento de la URL.
+        const doctores = await Doctor.find({ espedoc: req.params.especialidad });
+        res.json(doctores);
+    } catch (error) {
+        res.status(500).json({ mensaje: "Error al obtener los doctores", error });
     }
-
-    res.json({ mensaje: "doctor eliminado" });
-  } catch (error) {
-    console.error("Error al eliminar doctor:", error);
-    res.status(500).json({
-      mensaje: "Error al eliminar doctor",
-    });
-  }
 });
 
 export default router;

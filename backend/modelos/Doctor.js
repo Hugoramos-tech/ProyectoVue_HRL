@@ -1,26 +1,22 @@
-// ===========================================================================
-//  backend/modelos/Doctor.js
-//  Plantilla (schema) de los documentos de la colección "doctores".
-// ===========================================================================
-
 import mongoose from "mongoose";
 
+// Esquema de los datos persistidos para cada doctor.
 const DoctorSchema = new mongoose.Schema(
-    {
-        iddoc: { type: String, required: true, unique: true }, // ID del doctor, no se repite
-        nomedoc: { type: String, required: true },   // nombre
-        apeldoc: { type: String, required: true },   // apellidos
-        coledoc: { type: String, required: true },   // ¿colegiado? -> "Si" / "No"
-        maildoc: { type: String, required: true },   // correo electrónico
-        movildoc: { type: String, required: false }, // teléfono móvil
-        espedoc: { type: String, required: true },   // especialidad médica
-        loddoc: { type: Boolean, required: true }    // aceptó la política de privacidad
-    },
-
-    {
-        collection: "doctores", // nombre de la colección en MongoDB
-        timestamps: true        // guarda cuándo se creó y se modificó
-    }
+  {
+    // Datos de identificacion y contacto requeridos en el alta.
+    nomedoc: { type: String, required: true },
+    apeldoc: { type: String, required: true },
+    coledoc: { type: String, required: true },
+    movildoc: { type: String, required: true },
+    // El correo es opcional, por eso no se obliga al usuario a introducirlo.
+    maildoc: { type: String, required: false },
+    // El nombre debe coincidir con una de las especialidades disponibles.
+    espedoc: { type: String, required: true },
+  },
+  {
+    collection: "doctores",
+  },
 );
 
+// Exporta el modelo empleado por las rutas para consultar y modificar doctores.
 export default mongoose.model("Doctor", DoctorSchema);
