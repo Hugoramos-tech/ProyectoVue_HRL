@@ -1,182 +1,236 @@
 # Ruta con parámetro
 
-Un botón «Citas» en cada fila de pacientes que lleva a `/citas-paciente/<id>`: una página nueva con el nombre del paciente y la lista de sus citas. Si el id no existe, avisa. Tiene un botón para volver.
+Un botón «Citas» en cada fila de pacientes que lleva a `/citas-paciente/<dni>`: una pantalla nueva con el nombre del paciente y la lista de sus citas. Si el DNI no existe, avisa. Tiene un botón para volver.
 
-*Versión extendida, con variantes y más casos: [apuntes a fondo, apartado 4](../../detalle/03-rutas-y-componentes.md).*
-
-**Antes de empezar:** arranca el proyecto (`npm start`) y abre la página **Pacientes** (`/xestionPacientes`). Necesitas al menos un paciente.
+**Antes de empezar:** arranca el proyecto (`npm start`) y abre la página **Pacientes** (`/xestionPacientes`). Necesitas al menos un paciente, y mejor si tiene citas.
 
 ## La idea
 
-![El botón navega, el watch vigila el id, se pide el paciente y sus citas, y si no existe se avisa](../img/ruta-con-parametro.png)
+La parte `:dni` de la ruta es un **parámetro**: puede valer cualquier cosa, y la pantalla lo lee con `route.params.dni`.
 
-La parte `:id` de la ruta es un **parámetro**: puede valer cualquier cosa, y la página lo lee con `route.params.id`. Cuando el id de la URL cambia, Vue **reutiliza** el mismo componente y no vuelve a ejecutar `onMounted`; por eso se usa `watch`.
+**El detalle que cae en los exámenes:** cuando solo cambia el parámetro de la URL, Vue **reutiliza el mismo componente** y **no vuelve a ejecutar `onMounted`**. Por eso los datos se piden desde un `watch` con `{ immediate: true }`, que sirve para las dos cosas: la primera carga y los cambios posteriores.
+
+> En este proyecto el paciente se identifica por su **DNI**, no por el `_id`: así lo hace `getPacienteByDni` y así guardan las citas su referencia (`pacienteDNI`). Por eso el parámetro es el DNI y no hay que escribir ninguna función de API nueva.
 
 ## Qué vas a tocar
 
 | Fichero | Para qué |
 |---|---|
+| `src/components/CitasPaciente.vue` | Fichero **nuevo**: la pantalla |
 | `src/router/index.js` | La ruta nueva |
-| `src/api/pacientes.js` | Una función para pedir un paciente por su id |
-| `src/components/CitasPaciente.vue` | **Nuevo.** La página |
 | `src/components/XestionPacientes.vue` | El botón «Citas» de cada fila |
 
-## Paso 1 · La ruta
+`src/api/pacientes.js` y `src/api/citas.js` no se tocan: ya tienen lo necesario.
 
-En `src/router/index.js`, busca la línea `path: "/:pathMatch(.*)*",`. Es la entrada del error 404, que tiene que ir **la última**. Pega este bloque **justo encima del `{` que abre esa entrada**:
+## Paso 1 · La pantalla
 
-```js
-  {
-    // `:id` es un parámetro: la URL /citas-paciente/abc123 también encaja, y `abc123` llega a la página
-    path: "/citas-paciente/:id",
-    name: "citas-paciente",
-    // import(...) carga la página solo cuando se entra en ella (más rápido el arranque)
-    component: () => import("../views/CitasPaciente.vue"),
-    // Sin `menu` en meta: la ruta existe pero NO sale en el menú ni en el pie
-    meta: { titulo: "Citas do paciente" },
-  },
-```
-
-Qué hace: sin `menu` en `meta`, la ruta existe pero no sale en la barra de navegación.
-
-## Paso 2 · La función de la API
-
-Abre `src/api/pacientes.js` y pega esto **al final del fichero**:
-
-```js
-// GET /api/pacientes/:id -> un paciente por su id
-export async function obtenerPacientePorId(id) {
-  // Plantilla con `${...}`: la URL final es .../api/pacientes/abc123
-  const respuesta = await axios.get(`${URL}/${id}`);
-  return respuesta.data; // axios envuelve la respuesta; los datos están en .data
-}
-```
-
-## Paso 3 · La página
-
-Crea `src/components/CitasPaciente.vue`:
+Crea el fichero `src/components/CitasPaciente.vue` con este contenido:
 
 ```vue
+<template>
+  <main class="flex flex-1 flex-col gap-6 rounded-lg bg-white p-4 shadow-[0_2px_10px_rgba(0,0,0,0.05)] sm:p-8">
+    <!-- El titulo cambia segun haya paciente o no: condicion ? si_cierto : si_falso -->
+    <h4>
+      {{ paciente ? `Citas de ${paciente.nomepac} ${paciente.apelpac}` : "Citas del paciente" }}
+    </h4>
+
+    <!-- v-if / v-else-if / v-else: solo se pinta UNA de las opciones -->
+    <p v-if="cargando">
+      Cargando...
+    </p>
+    <p v-else-if="noEncontrado">
+      No se encontró ningún paciente con el DNI {{ route.params.dni }}.
+    </p>
+    <p v-else-if="citas.length === 0">
+      Este paciente no tiene citas.
+    </p>
+    <div v-else class="tabla-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha</th>
+            <th>Hora</th>
+            <th>Motivo</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="item in citas" :key="item._id">
+            <td>{{ item.fecha }}</td>
+            <td>{{ item.hora }}</td>
+            <td>{{ item.motivo }}</td>
+            <td>{{ item.estado }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- RouterLink navega sin recargar la pagina -->
+    <RouterLink to="/XestionPacientes">
+      ← Volver a pacientes
+    </RouterLink>
+  </main>
+</template>
+
 <script setup>
-import { ref, watch } from "vue";
-import { useRoute } from "vue-router";
-import { obtenerPacientePorId } from "../api/pacientes.js";
-import { obtenerCitas } from "../api/citas.js";
-import PageHeader from "../components/ui/PageHeader.vue";
-import AppButton from "../components/ui/AppButton.vue";
+import { ref, watch } from "vue"
+// useRoute() es la ruta ACTUAL: de ahi se leen los parametros.
+// No confundir con useRouter(), que es el que navega.
+import { useRoute } from "vue-router"
+import { getPacienteByDni } from "../api/pacientes.js"
+import { getCitas } from "../api/citas.js"
 
-// useRoute() es la ruta actual: de ahí se lee el parámetro (route.params.id)
-const route = useRoute();
-// ref = cajas vigiladas por Vue: al rellenarlas, la pantalla se repinta sola
-const paciente = ref(null);
-const citas = ref([]);
-const noAtopado = ref(false);
+const route = useRoute()
 
-// watch vigila `route.params.id` y ejecuta la función cuando cambia.
-// `immediate: true` la ejecuta también al entrar (si no, solo cuando cambiara después).
+const paciente = ref(null)
+const citas = ref([])
+const noEncontrado = ref(false)
+const cargando = ref(false)
+
+// watch vigila route.params.dni y ejecuta la funcion cuando cambia.
+// Se vigila con () => route.params.dni, una funcion que devuelve el valor:
+// si se pusiera route.params.dni a secas, se vigilaria el texto de ahora y
+// nunca volveria a saltar.
+// { immediate: true } la ejecuta tambien al entrar. Sin eso, al abrir la
+// pantalla no pasaria nada, porque el valor todavia no ha "cambiado".
 watch(
-  () => route.params.id,
-  async (id) => {
-    noAtopado.value = false;
+  () => route.params.dni,
+  async (dni) => {
+    noEncontrado.value = false
+    paciente.value = null
+    citas.value = []
+
+    if (!dni) {
+      return
+    }
+
+    cargando.value = true
     try {
-      // await espera la respuesta del servidor; si falla (404 o 400), salta al catch
-      paciente.value = await obtenerPacientePorId(id);
-      // Las citas guardan el DNI del paciente, no su id
-      citas.value = await obtenerCitas({ paciente: paciente.value.dnipac });
+      // getPacienteByDni rechaza la promesa si el backend responde 404.
+      paciente.value = await getPacienteByDni(dni)
+      // Las citas guardan el DNI del paciente en pacienteDNI.
+      citas.value = await getCitas({ pacienteDNI: dni })
     } catch {
-      // id inventado (404) o mal formado (400): se avisa en pantalla
-      paciente.value = null;
-      noAtopado.value = true;
+      // DNI inventado (404) o la base de datos caida (503): se avisa en pantalla.
+      noEncontrado.value = true
+    } finally {
+      cargando.value = false
     }
   },
   { immediate: true }
-);
+)
 </script>
-
-<template>
-  <!-- El título cambia según haya paciente o no (condición ? si_cierto : si_falso) -->
-  <PageHeader :titulo="paciente ? `Citas de ${paciente.nomepac} ${paciente.apelpac}` : 'Citas do paciente'" />
-
-  <!-- v-if / v-else-if / v-else: solo se pinta UNA de las tres opciones -->
-  <p v-if="noAtopado">Paciente non atopado</p>
-  <p v-else-if="citas.length === 0">Este paciente non ten citas.</p>
-  <ul v-else class="mb-6 list-disc pl-5">
-    <li v-for="c in citas" :key="c.id">{{ c.fecha }} {{ c.hora }}: {{ c.motivo }}</li>
-  </ul>
-
-  <!-- RouterLink = un enlace de la app (sin recargar la página) -->
-  <RouterLink to="/xestionPacientes">
-    <AppButton>Volver a pacientes</AppButton>
-  </RouterLink>
-</template>
 ```
 
-## Paso 4 · El botón en la tabla de pacientes
+## Paso 2 · La ruta
 
-En `src/components/XestionPacientes.vue`, hay cuatro cambios.
+En `src/router/index.js` hay dos cambios.
 
-Busca la línea `import { Users, ClipboardList, Save, FileDown, Search, Eraser } from "lucide-vue-next";` y **sustitúyela** por:
+**2.1** Busca la línea `import NotFound from '../components/NotFound.vue'` y pega esto **justo encima**:
 
 ```js
-// CalendarDays = el icono del botón; useRouter sirve para navegar desde el código
-import { Users, ClipboardList, Save, FileDown, Search, Eraser, CalendarDays } from "lucide-vue-next";
+import CitasPaciente from '../components/CitasPaciente.vue'
+```
+
+**2.2** Busca la línea `// Comodin al final: recoge las URLs que no coinciden con ninguna ruta anterior.` y pega esto **justo encima**:
+
+```js
+    // :dni es un parametro: /citas-paciente/12345678Z tambien encaja con esta ruta,
+    // y "12345678Z" llega a la pantalla en route.params.dni.
+    // TIENE que ir antes del comodin: el router prueba las rutas en orden y el
+    // comodin se queda con todo lo que llegue a el.
+    { path: '/citas-paciente/:dni', name: 'CitasPaciente', component: CitasPaciente },
+```
+
+Puedes probarlo ya, antes de poner el botón: escribe en el navegador `localhost:5173/citas-paciente/` seguido de un DNI que exista.
+
+## Paso 3 · El botón en la tabla de pacientes
+
+En `src/components/XestionPacientes.vue` hay dos cambios.
+
+**3.1** Busca la línea `const pacienteStore = usepacienteStore();` y pega esto **justo debajo**:
+
+```js
+// useRouter() es el router: sirve para ordenarle que navegue (router.push).
+// No confundir con useRoute(), que es la ruta actual.
 import { useRouter } from "vue-router";
-```
-
-Busca la línea `const pacienteStore = usepacienteStore();` y pega **justo debajo**:
-
-```js
-// useRouter() es el router: sirve para ordenarle que navegue (router.push). No confundir con useRoute().
 const router = useRouter();
 ```
 
-Busca el bloque `<RowActions` que contiene la línea `@editar="editarPaciente(fila)"` (son cuatro líneas, hasta el `/>`) y **sustitúyelo** por:
+**3.2** Busca la línea `{{ pacienteStore.idPaciente === u._id ? "✅" : "👤" }}` (es el emoji del botón de seleccionar). Debajo hay un `</button>` que lo cierra. Pega esto **justo debajo de ese `</button>`**:
 
 ```vue
-        <RowActions
-          @editar="editarPaciente(fila)"
-          @eliminar="eliminarPacientePorId(fila)"
-        >
-          <!-- Botón extra: va dentro de RowActions y sale antes de editar/eliminar -->
-          <AppButton
-            variante="fantasma"
-            icono
-            title="Citas do paciente"
-            aria-label="Citas do paciente"
-            @click="router.push(`/citas-paciente/${fila.id}`)"
-          >
-            <CalendarDays :size="16" />
-          </AppButton>
-        </RowActions>
+              <!-- Los acentos graves permiten meter el DNI dentro de la ruta -->
+              <button
+                class="btn-accion"
+                type="button"
+                title="Citas del paciente"
+                aria-label="Citas del paciente"
+                @click="router.push(`/citas-paciente/${u.dnipac}`)"
+              >
+                📅
+              </button>
 ```
 
-Qué hace: lo que va dentro de `<RowActions>` se pinta antes de los botones de editar y eliminar.
+## Variante · Carga perezosa del componente
+
+En tu router todas las pantallas se importan arriba, así que entran en el paquete inicial. Una ruta a la que casi nunca se entra puede cargarse solo cuando se usa:
+
+```js
+    { path: '/citas-paciente/:dni', name: 'CitasPaciente', component: () => import('../components/CitasPaciente.vue') },
+```
+
+Así se puede saltar el Paso 2.1: no hace falta el `import` de arriba. Es más rápido al arrancar, pero mezcla dos estilos en el mismo fichero; para el examen vale cualquiera de los dos, sabiendo explicar la diferencia.
+
+## Variante · Parámetro opcional
+
+Con un `?` detrás, el parámetro puede faltar:
+
+```js
+    { path: '/citas-paciente/:dni?', name: 'CitasPaciente', component: CitasPaciente },
+```
+
+Entonces `/citas-paciente` sin nada también entra, y `route.params.dni` llega `undefined`. De ahí el `if (!dni) return` del Paso 1.
+
+## Variante · Leerlo con props en vez de `useRoute`
+
+```js
+    { path: '/citas-paciente/:dni', name: 'CitasPaciente', component: CitasPaciente, props: true },
+```
+
+Con `props: true`, el parámetro llega como una prop normal y en la pantalla se declara `defineProps({ dni: String })`. Queda más limpio y el componente se puede probar sin router.
 
 ## Qué deberías ver
 
-1. Un icono de calendario en cada fila de pacientes.
-2. Al pulsarlo, la URL pasa a `/citas-paciente/<id>` y salen el nombre y sus citas.
-3. Cambia el id de la URL a mano por uno inventado: «Paciente non atopado».
-4. «Volver a pacientes» te devuelve a la tabla.
+1. Un icono 📅 en cada fila de pacientes.
+2. Al pulsarlo, la URL pasa a `/citas-paciente/12345678Z` y salen el nombre del paciente y la tabla de sus citas.
+3. Cambia el DNI de la URL a mano por uno inventado: «No se encontró ningún paciente con el DNI…».
+4. «Volver a pacientes» devuelve a la tabla.
+5. Con dos pacientes, cambia el DNI de la URL de uno al otro: los datos cambian. **Eso es lo que demuestra que el `watch` funciona**; con `onMounted` la pantalla se quedaría con los datos del primero.
 
 ## Si algo falla
 
 | Síntoma | Causa y arreglo |
 |---|---|
-| Sale la página de «non atopada» (404 de la web) | La ruta está después de `/:pathMatch(.*)*`: tiene que ir antes |
-| `obtenerPacientePorId is not a function` | Falta el Paso 2, o no está exportada |
-| Al cambiar el id a mano no recarga | Usas `onMounted` en vez de `watch`, o `watch(route.params.id, ...)` sin la flecha |
-| El botón no hace nada | Falta `useRouter` o el `const router = useRouter();` del Paso 4 |
-| `router.push is not a function` | Importaste `useRoute` en vez de `useRouter` |
+| Sale la pantalla de «página no encontrada» | La ruta quedó **después** del comodín `/:pathMatch(.*)`: tiene que ir antes |
+| La pantalla sale vacía al entrar | Falta `{ immediate: true }` en el `watch` |
+| Al cambiar el DNI en la URL no se actualiza | Vigilaste `route.params.dni` sin la flecha: tiene que ser `() => route.params.dni` |
+| `router.push is not a function` | Importaste `useRoute` en vez de `useRouter` en el Paso 3.1 |
+| `Failed to resolve component: CitasPaciente` | Falta el Paso 2.1, el import en el router |
+| Siempre «no se encontró» | El DNI de la URL no está en mayúsculas: el backend los guarda así |
+| El botón no hace nada | Falta el `const router = useRouter();` |
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| Parámetros en la URL | `/ruta/:id` y cómo leerlo con `useRoute` | `03_lecciones/02_router_comunicacion.md §6` |
-| `watch` | Ejecuta código cuando cambia un dato, como un parámetro de la URL | `03_lecciones/01_reactividad.md §5` |
-| `useRouter().push` | Navegar a otra página desde el código | `03_lecciones/02_router_comunicacion.md §7` |
+| Concepto | En una línea |
+|---|---|
+| Parámetro en la ruta | `/ruta/:algo`, se lee con `route.params.algo` |
+| `useRoute` frente a `useRouter` | La ruta actual frente al objeto que navega |
+| `watch` con `immediate` | Reaccionar a los cambios y ejecutarse también al entrar |
+| Orden de las rutas | El comodín va siempre el último |
+| `router.push` | Navegar desde el código |
 
 ## Guías relacionadas
 
-- [Guía: pantalla nueva](../../guias/pantalla-nueva.md)
+- [Componente hijo con props y emit](componente-props-emit.md)
+- [Apuntes a fondo: rutas y componentes](../../detalle/03-rutas-y-componentes.md)

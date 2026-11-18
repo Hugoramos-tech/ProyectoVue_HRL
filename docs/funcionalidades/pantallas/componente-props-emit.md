@@ -1,147 +1,239 @@
 # Componente hijo con props y emit
 
-En la página de servicios, un desplegable de especialidades y debajo las tarjetas de sus doctores. Cada tarjeta es un componente, `TarxetaDoctor`, que recibe el doctor y avisa a la página cuando se pulsa «Pedir cita». Esa pulsación lleva a Citas con el doctor ya elegido.
+En la página de servicios, un desplegable de especialidades y debajo las tarjetas de sus doctores. Cada tarjeta es un componente nuevo, `TarjetaDoctor`, que **recibe** el doctor y **avisa** a la página cuando se pulsa «Pedir cita». Esa pulsación lleva a Citas con el doctor ya seleccionado.
 
-*Versión extendida, con variantes y más casos: [apuntes a fondo, apartado 9](../../detalle/03-rutas-y-componentes.md).*
-
-**Antes de empezar:** arranca el proyecto (`npm start`) y ten abierta la página **Servizos** (`/servicios`). Necesitas doctores creados.
+**Antes de empezar:** arranca el proyecto (`npm start`) y abre la página **Servicios** (`/servicios`). Necesitas doctores creados, con su especialidad.
 
 ## La idea
 
-Los datos bajan del padre al hijo por **props**. Los avisos suben del hijo al padre por **emit**. El hijo no modifica lo que le llega: avisa y el padre decide.
+Los datos **bajan** del padre al hijo por **props**. Los avisos **suben** del hijo al padre por **emit**. El hijo no modifica lo que le llega: avisa, y el padre decide qué hacer.
 
-`Servizos.vue` (padre) → `:doctor="d"` → `TarxetaDoctor.vue` (hijo) → `emit('pedir-cita')` → `Servizos.vue`
+```
+Servicios.vue (padre)  ──:doctor="d"──▶  TarjetaDoctor.vue (hijo)
+       ▲                                        │
+       └──────── emit('pedir-cita', doctor) ────┘
+```
+
+Es el único sitio de la wiki donde se crea un componente hijo de verdad, así que es la receta típica para una pregunta de «comunicación entre componentes».
+
+> `src/components/PlantillaComponente.vue` ya existe en tu proyecto, pero **no es esto**: es una pantalla CRUD completa de ejemplo, un molde para copiar. No está dada de alta en el router y no recibe props.
 
 ## Qué vas a tocar
 
 | Fichero | Para qué |
 |---|---|
-| `src/components/TarxetaDoctor.vue` | **Nuevo.** La tarjeta (el hijo) |
+| `src/components/TarjetaDoctor.vue` | Fichero **nuevo**: la tarjeta (el hijo) |
 | `src/components/Servicios.vue` | El padre: desplegable, tarjetas y navegación |
 
 ## Paso 1 · El hijo
 
-Crea `src/components/TarxetaDoctor.vue`:
+Crea el fichero `src/components/TarjetaDoctor.vue` con este contenido:
 
 ```vue
-<script setup>
-import AppButton from "./ui/AppButton.vue";
+<template>
+  <article class="rounded-2xl border border-[#e1e9e7] bg-white p-5 shadow-[0_5px_18px_rgba(20,60,45,0.06)]">
+    <!-- Dentro del template las props se usan por su nombre, sin props. delante -->
+    <h3 class="mb-1 text-lg font-bold text-[#153f2e]">
+      {{ doctor.nomedoc }} {{ doctor.apeldoc }}
+    </h3>
+    <p class="mb-1 text-sm font-bold text-[#28695e]">
+      {{ doctor.espedoc }}
+    </p>
+    <p class="text-sm text-[#64737a]">
+      {{ doctor.movildoc }} · {{ doctor.maildoc || "Sin correo" }}
+    </p>
 
-// Props: los datos que el PADRE le pasa a este componente. El hijo solo los LEE, nunca los modifica.
-// `required: true` = si el padre no lo pasa, Vue avisa en la consola.
+    <!-- Al pulsar, el hijo lanza el aviso "pedir-cita" y le manda el doctor al padre.
+         El hijo NO navega ni toca Pinia: eso es cosa del padre. -->
+    <button
+      class="mt-3 rounded-full bg-[#14543a] px-4 py-2 text-sm font-bold text-white"
+      type="button"
+      @click="emit('pedir-cita', doctor)"
+    >
+      Pedir cita
+    </button>
+  </article>
+</template>
+
+<script setup>
+// defineProps declara los datos que el PADRE le pasa. El hijo solo los LEE.
+// required: true -> si el padre no lo pasa, Vue avisa por la consola.
+// No hay que importar defineProps ni defineEmits: en <script setup> ya existen.
 defineProps({
   doctor: { type: Object, required: true },
 });
 
-// Emit: los avisos que el hijo puede enviar al padre ("ha pasado esto, haz tú lo que toque")
+// defineEmits declara los avisos que este componente puede enviar hacia arriba.
 const emit = defineEmits(["pedir-cita"]);
 </script>
-
-<template>
-  <article class="rounded-xl bg-subtle p-4">
-    <!-- Dentro del template, las props se usan por su nombre: `doctor` -->
-    <h3 class="font-medium">{{ doctor.nomedoc }} {{ doctor.apeldoc }}</h3>
-    <p class="text-sm text-fg-soft">{{ doctor.movildoc }} · {{ doctor.maildoc }}</p>
-    <!-- Al pulsar, el hijo lanza el aviso "pedir-cita" y le manda el doctor al padre -->
-    <AppButton variante="primario" class="mt-3" @click="emit('pedir-cita', doctor)">
-      Pedir cita
-    </AppButton>
-  </article>
-</template>
 ```
 
-## Paso 2 · Los imports del padre
+## Paso 2 · La lógica del padre
 
-En `src/components/Servicios.vue`, busca la línea `import PageHeader from "../components/ui/PageHeader.vue";` y pega esto **justo debajo**:
-
-```js
-// ref = caja vigilada; onMounted = "al aparecer la página"; storeToRefs = datos del store sin perder la reactividad
-import { ref, onMounted } from "vue";
-import { storeToRefs } from "pinia";
-import { useRouter } from "vue-router";
-import { obtenerDoctores } from "../api/doctores.js";
-import { useEspecialidadStore } from "../store/especialidadStore.js";
-import { useCitaStore } from "../store/citaStore.js";
-// Al importar el componente hijo, ya se puede usar como etiqueta: <TarxetaDoctor />
-import TarxetaDoctor from "../components/TarxetaDoctor.vue";
-```
-
-## Paso 3 · La lógica del padre
-
-En `src/components/Servicios.vue`, busca la línea `</script>` y pega esto **justo encima**:
+En `src/components/Servicios.vue`, busca la línea `const servicios = [` y pega esto **justo encima**:
 
 ```js
-const router = useRouter();
-const citaStore = useCitaStore();
-const especialidadStore = useEspecialidadStore();
-const { especialidades } = storeToRefs(especialidadStore);
+import { ref } from 'vue'
+// useRouter da acceso al router desde el codigo, para navegar sin que el usuario pulse un enlace.
+import { useRouter } from 'vue-router'
+import { obtenerEspecialidades } from '../api/especialidades.js'
+import { getDoctorByEspecialidad } from '../api/doctores.js'
+import { useDoctorStore } from '../store/doctorStore.js'
+// Al importar el hijo ya se puede usar como etiqueta: <TarjetaDoctor />
+import TarjetaDoctor from './TarjetaDoctor.vue'
+import { alertaError } from '../utils/alertas.js'
 
-const doctores = ref([]);            // los doctores de la especialidad elegida
-const especialidadeElixida = ref(""); // lo que hay elegido en el desplegable
+const router = useRouter()
+const doctorStore = useDoctorStore()
 
-// Las especialidades se cargan al abrir la página
-onMounted(() => especialidadStore.cargarEspecialidades());
+const especialidades = ref([])
+const especialidadElegida = ref('')
+const doctores = ref([])
+const buscando = ref(false)
 
-// Al elegir una especialidad se piden al servidor solo los doctores de esa especialidad
+// Las especialidades se piden al abrir la pantalla. No hace falta onMounted:
+// una llamada suelta en el script setup tambien funciona, solo que sin await.
+obtenerEspecialidades()
+  .then((lista) => (especialidades.value = lista))
+  .catch(() => (especialidades.value = []))
+
+// Al elegir una especialidad se piden al servidor solo los doctores de esa especialidad.
+// getDoctorByEspecialidad manda el nombre en la URL: /api/doctores/Cardioloxia
 async function verDoctores() {
-  doctores.value = especialidadeElixida.value
-    ? await obtenerDoctores(especialidadeElixida.value)
-    : [];
+  if (!especialidadElegida.value) {
+    doctores.value = []
+    return
+  }
+
+  buscando.value = true
+  try {
+    doctores.value = await getDoctorByEspecialidad(especialidadElegida.value)
+  } catch {
+    doctores.value = []
+    alertaError('No se pudieron cargar los doctores de esa especialidad.')
+  } finally {
+    buscando.value = false
+  }
 }
 
-// Llega el aviso de la tarjeta (con el doctor): se deja el doctor elegido en el store y se va a Citas
+// Aqui llega el aviso del hijo, con el doctor como argumento.
+// El padre deja el doctor seleccionado en Pinia y navega a Citas.
 function pedirCita(doctor) {
-  citaStore.idDoctor = doctor.id;
-  router.push("/citas"); // navegar desde el código
+  doctorStore.seleccionarDoctor(doctor)
+  router.push('/citas')
 }
 ```
 
-## Paso 4 · El desplegable y las tarjetas
+## Paso 3 · El desplegable y las tarjetas
 
-En `src/components/Servicios.vue`, busca la línea `</template>` (es la única de ese fichero, la que cierra todo el `<template>`) y pega esto **justo encima**:
+En el `<template>`, busca la línea `</main>` y pega esto **justo encima**:
 
 ```vue
-  <section class="mt-10">
-    <h2 class="mb-3 text-xl font-semibold">Os nosos doctores</h2>
-    <!-- v-model guarda lo elegido; @change llama a verDoctores al cambiar -->
-    <select v-model="especialidadeElixida" @change="verDoctores">
-      <option value="">Escolle unha especialidade</option>
-      <option v-for="e in especialidades" :key="e.id" :value="e.nomeesp">{{ e.nomeesp }}</option>
-    </select>
+    <section aria-label="Nuestros doctores">
+      <h2 class="mb-3 text-2xl font-bold text-[#153f2e]">
+        Nuestros doctores
+      </h2>
 
-    <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <!-- :doctor="d" (con dos puntos) pasa el OBJETO d como prop. @pedir-cita="pedirCita" escucha el aviso
-           del hijo: el nombre tiene que coincidir con el de emit('pedir-cita') -->
-      <TarxetaDoctor v-for="d in doctores" :key="d.id" :doctor="d" @pedir-cita="pedirCita" />
-    </div>
-    <p v-if="especialidadeElixida && doctores.length === 0" class="mt-4 text-sm">
-      Non hai doctores nesta especialidade.
-    </p>
-  </section>
+      <!-- v-model guarda lo elegido; @change llama a verDoctores al cambiar -->
+      <select
+        v-model="especialidadElegida"
+        class="mb-4 rounded-lg border border-[#cfe0d6] px-3 py-2"
+        @change="verDoctores"
+      >
+        <option value="">
+          Elige una especialidad
+        </option>
+        <option
+          v-for="e in especialidades"
+          :key="e.id"
+          :value="e.nm"
+        >
+          {{ e.nm }}
+        </option>
+      </select>
+
+      <p v-if="buscando">
+        Buscando doctores...
+      </p>
+
+      <div
+        v-else-if="doctores.length"
+        class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3"
+      >
+        <!-- :doctor="d" (CON dos puntos) pasa el objeto d como prop.
+             @pedir-cita="pedirCita" escucha el aviso del hijo: el nombre tiene
+             que coincidir exactamente con el de emit('pedir-cita'). -->
+        <TarjetaDoctor
+          v-for="d in doctores"
+          :key="d._id"
+          :doctor="d"
+          @pedir-cita="pedirCita"
+        />
+      </div>
+
+      <p v-else-if="especialidadElegida">
+        No hay doctores en esa especialidad.
+      </p>
+    </section>
 ```
 
-Qué hace: `:doctor="d"` (con dos puntos) pasa el **objeto** completo. `@pedir-cita="pedirCita"` escucha el aviso: el nombre tiene que coincidir con el de `emit('pedir-cita')` del hijo.
+## Los tres errores clásicos
+
+1. **`:doctor="d"` sin los dos puntos.** `doctor="d"` pasa el **texto** `"d"`, no el objeto. Luego `doctor.nomedoc` sale vacío y Vue avisa de que la prop no es un objeto.
+2. **El nombre del evento no coincide.** `emit('pedir-cita')` en el hijo y `@pedir-cita` en el padre. Si en el hijo pones `emit('pedirCita')` y en el padre `@pedir-cita`, no pasa nada y no hay ningún error: es el fallo más difícil de encontrar.
+3. **Modificar la prop en el hijo.** `doctor.nomedoc = "otro"` no se puede: las props son de solo lectura. Si el hijo necesita cambiar algo, avisa con `emit` y el padre lo cambia.
+
+## Variante · Pasar varias props
+
+```js
+defineProps({
+  doctor: { type: Object, required: true },
+  // default: un valor si el padre no la pasa. Con Boolean conviene default: false.
+  destacado: { type: Boolean, default: false },
+})
+```
+
+Y en el padre: `:destacado="d.espedoc === 'Cardioloxía'"`.
+
+## Variante · Dos avisos distintos
+
+```js
+const emit = defineEmits(['pedir-cita', 'ver-ficha'])
+```
+
+En el padre: `@pedir-cita="pedirCita" @ver-ficha="verFicha"`.
 
 ## Qué deberías ver
 
-1. Debajo de las tarjetas de servicios, un título «Os nosos doctores» y un desplegable.
-2. Eliges una especialidad con doctores y salen sus tarjetas con nombre, teléfono y correo.
-3. Una especialidad sin doctores muestra «Non hai doctores nesta especialidade.».
-4. «Pedir cita» te lleva a Citas con ese doctor ya elegido en el formulario.
+1. Debajo de las tarjetas de servicios, un título «Nuestros doctores» y un desplegable con las especialidades.
+2. Al elegir una con doctores, salen sus tarjetas con nombre, especialidad, móvil y correo.
+3. Una especialidad sin doctores muestra «No hay doctores en esa especialidad.».
+4. «Pedir cita» lleva a Citas con ese doctor ya seleccionado: el aviso de «selecciona un doctor» ya no sale y el formulario lo muestra.
 
 ## Si algo falla
 
 | Síntoma | Causa y arreglo |
 |---|---|
-| El botón de la tarjeta no hace nada | El nombre del evento no coincide: `emit('pedir-cita')` en el hijo y `@pedir-cita` en el padre |
-| La tarjeta muestra `doctor` literal o nada | Falta el `:` en `:doctor="d"` |
-| El desplegable sale vacío | Las especialidades no cargan: falta el `onMounted` del Paso 3 |
-| `Failed to resolve import` | Revisa la ruta del import en el Paso 2 |
+| La tarjeta sale vacía o Vue avisa de la prop | Falta el `:` en `:doctor="d"` |
+| El botón de la tarjeta no hace nada y no hay error | El nombre del evento no coincide entre `emit(...)` y `@...` |
+| `Failed to resolve import` | La ruta del import del Paso 2: desde `components/` el hijo es `./TarjetaDoctor.vue` |
+| El desplegable sale vacío | La API de especialidades no responde: mira la consola de F12 |
+| Elijo especialidad y no sale nada | Los doctores se filtran por el **nombre** exacto: el `:value` del `<option>` tiene que ser `e.nm` |
+| Al pedir cita, Citas dice que falta el paciente | Es correcto: para **crear** una cita hacen falta los dos, paciente y doctor |
+| `useRouter is not defined` | Falta su import en el Paso 2 |
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| Props y emit | Los datos bajan al hijo por props y los avisos suben al padre por emit | `03_lecciones/02_router_comunicacion.md §8` |
-| `v-for` con `:key` | Repite un elemento por cada elemento de una lista | `03_lecciones/vue/03_v_for.md` |
-| `useRouter().push` | Navegar a otra página desde el código | `03_lecciones/02_router_comunicacion.md §7` |
+| Concepto | En una línea |
+|---|---|
+| `defineProps` | Los datos que el padre pasa al hijo; el hijo solo los lee |
+| `defineEmits` | Los avisos que el hijo manda al padre |
+| `:prop="valor"` | Con dos puntos se pasa el valor; sin ellos, un texto literal |
+| `useRouter().push` | Navegar a otra pantalla desde el código |
+| Componente importado | Al importarlo ya se puede usar como etiqueta |
+
+## Guías relacionadas
+
+- [Ruta con parámetro](ruta-con-parametro.md)
+- [Elegir en una página y usarlo en otra](../pinia/pinia-seleccion.md)
+- [Apuntes a fondo: rutas y componentes](../../detalle/03-rutas-y-componentes.md)

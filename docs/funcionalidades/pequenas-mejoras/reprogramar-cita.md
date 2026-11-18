@@ -1,122 +1,171 @@
 # Reprogramar una cita
 
-Un botón «Reprogramar» en cada cita pendiente o confirmada. Abre una ventana con dos campos (fecha y hora) y cambia solo esos dos datos. Si el doctor está ocupado, el servidor responde `409` y se muestra el aviso.
+Un botón «Reprogramar» en cada cita pendiente o confirmada. Abre una ventana con dos campos, fecha y hora, y cambia solo esos dos datos.
 
 **Antes de empezar:** arranca el proyecto (`npm start`) y abre la página **Citas** (`/citas`).
 
 ## La idea
 
-SweetAlert2 permite poner HTML dentro de la ventana (`html`) y recoger lo escrito en `preConfirm`. Después se guarda con `gardarCita(id, { fecha, hora })`, que hace un `PUT` parcial.
+SweetAlert2 permite meter HTML dentro de la ventana con la opción `html`, y recoger lo que el usuario escribió con `preConfirm`. Después se guarda con `updateCita(id, { fecha, hora })`, que es un `PUT` parcial: el backend solo toca los campos que recibe.
+
+> **Importante:** tu backend **no comprueba** si el doctor ya tiene una cita a esa hora. `validarRelaciones` solo mira que el paciente y el doctor existan. Así que reprogramar a una hora ocupada **funcionará sin avisar**. Si quieres que lo impida, hay dos caminos: avisar desde la web ([cita duplicada antes de enviar](cita-duplicada-antes-de-enviar.md)) o impedirlo en la base de datos ([índice único](../backend/indice-unico.md)). Más abajo está la comprobación integrada en esta misma receta.
 
 ## Qué vas a tocar
 
 | Fichero | Para qué |
 |---|---|
-| `src/components/Citas.vue` | Imports, la función y el botón |
+| `src/components/Citas.vue` | El import de SweetAlert2, la función y el botón |
 
-## Paso 1 · Los imports
+## Paso 1 · Importar SweetAlert2
 
-En `src/components/Citas.vue`, hay dos líneas.
+Esta pantalla solo usa las alertas ya preparadas de `utils/alertas.js`, así que no tiene SweetAlert2 directamente. Para una ventana con campos propios hace falta.
 
-Busca `import { CalendarDays, ClipboardList, Save, Eraser, FileDown } from "lucide-vue-next";` y **sustitúyela** por:
-
-```js
-// CalendarClock = el icono (un calendario con reloj) del botón nuevo
-import { CalendarDays, ClipboardList, Save, Eraser, FileDown, CalendarClock } from "lucide-vue-next";
-```
-
-Busca la línea `import { datosParaPdf } from "../utils/tabla.js";` y pega esto **justo debajo**:
+Busca la línea `import { generarPDF } from "../utils/pdf.js"` y pega esto **justo debajo**:
 
 ```js
-// SweetAlert2 directamente: se necesita una ventana con campos propios
-import Swal from "sweetalert2";
+// SweetAlert2 directamente: se necesita una ventana con campos propios,
+// que las funciones de utils/alertas.js no cubren.
+import Swal from "sweetalert2"
 ```
-
-(Si ya lo pegaste en otra receta, salta esta segunda línea.)
 
 ## Paso 2 · La función
 
-Busca la línea `// Texto de la tabla cuando no hay filas: distingue "no hay citas" de "no hay con este filtro".` y pega esto **justo encima**:
+Busca la línea `async function guardarCita() {` y pega esto **justo encima**:
 
 ```js
-// Pide una fecha y una hora nuevas y las guarda. El servidor comprueba que el doctor esté libre.
-async function reprogramarCita(cita) {
+// Pide una fecha y una hora nuevas y las guarda.
+async function reprogramarCita(item) {
   const { isConfirmed, value } = await Swal.fire({
-    title: "Reprogramar a cita",
-    // html mete dos campos dentro de la ventana, ya rellenos con los datos actuales de la cita
+    title: "Reprogramar la cita",
+    // html mete dos campos dentro de la ventana, ya rellenos con los datos actuales.
+    // swal2-input es la clase de SweetAlert2 para que se vean como sus campos.
     html: `
-      <input id="nova-data" type="date" class="swal2-input" value="${cita.fecha}">
-      <input id="nova-hora" type="time" class="swal2-input" value="${cita.hora}">
+      <input id="nueva-fecha" type="date" class="swal2-input" value="${item.fecha}">
+      <input id="nueva-hora" type="time" class="swal2-input" value="${item.hora}">
     `,
     showCancelButton: true,
-    confirmButtonText: "Gardar",
+    confirmButtonText: "Guardar",
     cancelButtonText: "Volver",
-    // preConfirm se ejecuta al pulsar "Gardar": lee los campos, valida y devuelve lo que llegará como `value`
+    // preConfirm se ejecuta al pulsar Guardar: lee los campos, valida y devuelve
+    // lo que llegara como `value`. Si devuelve false, la ventana no se cierra.
     preConfirm: () => {
-      const fecha = document.getElementById("nova-data").value;
-      const hora = document.getElementById("nova-hora").value;
+      const fecha = document.getElementById("nueva-fecha").value
+      const hora = document.getElementById("nueva-hora").value
       if (!fecha || !hora) {
-        Swal.showValidationMessage("Elixe unha data e unha hora"); // mensaje rojo; la ventana no se cierra
-        return false;
+        Swal.showValidationMessage("Elige una fecha y una hora")
+        return false
       }
-      return { fecha, hora };
+      return { fecha, hora }
     },
-  });
-  if (!isConfirmed) return; // pulsó "Volver"
+  })
+
+  // isConfirmed es false si pulso Volver o cerro con Escape.
+  if (!isConfirmed) {
+    return
+  }
+
   try {
-    // PUT parcial: solo cambian estos dos campos. Si el doctor está ocupado, el servidor da 409 y se muestra
-    await citaStore.gardarCita(cita.id, value);
-    alertaExito("Cita reprogramada.");
-  } catch (e) {
-    alertaError(mensajeError(e, "Non se puido reprogramar a cita."));
+    // PUT parcial: solo viajan fecha y hora. El resto de la cita queda igual.
+    await updateCita(item._id, value)
+    await alertaExito("Cita reprogramada.")
+    await cargarDatos()
+  } catch (error) {
+    alertaError(mensajeError(error, "No se pudo reprogramar la cita."))
   }
 }
 ```
 
-Qué hace: `html` mete los dos campos dentro de la ventana. `preConfirm` se ejecuta al pulsar «Gardar»: lee los campos, valida y devuelve el objeto, que llega como `value`.
+> `updateCita`, `cargarDatos`, `alertaExito`, `alertaError` y `mensajeError` ya existen en este fichero.
 
 ## Paso 3 · El botón
 
-Busca la línea `</RowActions>` y pega esto **justo encima**:
+En el `<template>`, busca la línea `<td class="citas-celda-acciones">` y pega esto **justo debajo**:
 
 ```vue
-          <!-- Solo se puede reprogramar una cita que aún está viva (pendiente o confirmada) -->
-          <AppButton
-            v-if="fila.estado === 'pendente' || fila.estado === 'confirmada'"
-            variante="fantasma"
-            icono
-            title="Reprogramar"
-            aria-label="Reprogramar"
-            @click="reprogramarCita(fila)"
-          >
-            <CalendarClock :size="16" />
-          </AppButton>
+                <!-- Solo tiene sentido reprogramar una cita que sigue viva -->
+                <button
+                  v-if="item.estado === 'pendente' || item.estado === 'confirmada'"
+                  class="citas-boton-accion"
+                  type="button"
+                  title="Reprogramar"
+                  aria-label="Reprogramar"
+                  @click="reprogramarCita(item)"
+                >
+                  🕒
+                </button>
 ```
+
+## Variante · Comprobar que la hora está libre
+
+Para que no se pueda reprogramar encima de otra cita, dentro de `reprogramarCita`, justo después del `if (!isConfirmed) { return }`, pega:
+
+```js
+  // El backend no comprueba solapes: hay que hacerlo aqui.
+  // getCitas({ doctorId }) devuelve las citas de ese doctor.
+  const idDoctor = String(item.doctorId?._id ?? item.doctorId ?? "")
+  const delDoctor = await getCitas({ doctorId: idDoctor }).catch(() => [])
+  const choca = delDoctor.find(
+    (otra) =>
+      otra.fecha === value.fecha &&
+      otra.hora === value.hora &&
+      otra.estado !== "cancelada" &&
+      // La propia cita no cuenta como choque consigo misma
+      String(otra._id) !== String(item._id)
+  )
+
+  if (choca) {
+    alertaError(
+      `El doctor ya tiene una cita el ${value.fecha} a las ${value.hora}.`,
+      "Hora ocupada"
+    )
+    return
+  }
+```
+
+`getCitas` ya está importado en este fichero.
+
+## Variante · No permitir fechas pasadas
+
+En el `html` de la ventana, añade un `min` al campo de fecha:
+
+```js
+      <input id="nueva-fecha" type="date" class="swal2-input" min="${new Date().toISOString().slice(0, 10)}" value="${item.fecha}">
+```
+
+`toISOString().slice(0, 10)` da la fecha de hoy como `aaaa-mm-dd`. Ojo: `toISOString` usa la hora UTC, así que de madrugada puede dar el día anterior. Para ser exacto, usa el mismo `hoyTexto` que montan otras recetas con `getFullYear`, `getMonth` y `getDate`.
 
 ## Qué deberías ver
 
-1. Un botón con un reloj en las citas pendientes y confirmadas.
-2. Al pulsarlo, una ventana con la fecha y hora actuales de la cita.
-3. Con una fecha y hora libres, la cita cambia y sale «Cita reprogramada.».
-4. Con una hora que el doctor ya tiene ocupada, sale la alerta roja con el mensaje del servidor.
+1. Un botón 🕒 en las citas pendientes y confirmadas, y no en las canceladas ni realizadas.
+2. Al pulsarlo, una ventana con la fecha y la hora actuales de esa cita ya puestas.
+3. Al dejar un campo vacío y aceptar, sale «Elige una fecha y una hora» en rojo y la ventana no se cierra.
+4. Al guardar, la cita cambia en la tabla y sale «Cita reprogramada.».
+5. Con la variante de comprobación: a una hora ocupada sale la alerta y no se guarda nada.
 
 ## Si algo falla
 
 | Síntoma | Causa y arreglo |
 |---|---|
-| `CalendarClock is not defined` | No se cambió el import de `lucide-vue-next` |
-| Los campos salen vacíos | Falta el `value="${...}"` dentro del HTML |
-| Al aceptar no pasa nada | `preConfirm` no devuelve el objeto, o `id="nova-data"` no coincide con `getElementById` |
-| El botón no aparece | Se pegó fuera de `<RowActions>` |
+| `Swal is not defined` | Falta el Paso 1 |
+| Los campos salen vacíos | Falta el `value="${item.fecha}"` dentro del HTML |
+| Al aceptar no pasa nada | `preConfirm` no devuelve el objeto, o los `id` no coinciden con los `getElementById` |
+| `Cannot read properties of null` | Un `id` del HTML está mal escrito: `getElementById` devolvió `null` |
+| El botón sale en todas las citas | Falta el `v-if` del estado |
+| Se guarda encima de otra cita | Es lo esperado sin la variante de comprobación: el backend no lo impide |
+| La tabla no cambia | Falta el `await cargarDatos()` del final |
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| SweetAlert2 con `html` y `preConfirm` | Una ventana con varios campos | `03_lecciones/05_sweetalert.md` |
-| `PUT` parcial | Enviar solo los campos que cambian | `03_lecciones/03_crud_api_rest.md §3` |
+| Concepto | En una línea |
+|---|---|
+| `Swal.fire` con `html` | Una ventana con varios campos propios |
+| `preConfirm` | Leer y validar lo escrito antes de cerrar |
+| `showValidationMessage` | Mensaje de error dentro de la ventana |
+| `PUT` parcial | Enviar solo los campos que cambian |
+| `?._id ?? ` | Normalizar una referencia que puede venir como objeto |
 
 ## Guías relacionadas
 
-- [Cancelar con motivo](../mejoras-de-la-clinica/cancelar-con-motivo.md)
+- [Cita duplicada antes de enviar](cita-duplicada-antes-de-enviar.md)
+- [Cancelar una cita con motivo](../mejoras-de-la-clinica/cancelar-con-motivo.md)
 - [Alertas extra](../alertas-y-pdf/alertas-extra.md)

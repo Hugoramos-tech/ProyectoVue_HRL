@@ -1,109 +1,164 @@
 # Columnas de citas en la tabla de doctores: total, hoy y «ocupado ahora»
 
-Tres datos nuevos en la tabla de doctores: cuántas citas tiene cada uno, cuántas son de hoy y si ahora mismo está ocupado (tiene una cita que empezó hace menos de media hora).
+Tres columnas nuevas en la tabla de doctores: cuántas citas tiene cada uno, cuántas son de hoy y si ahora mismo está ocupado (tiene una cita que empezó hace menos de media hora).
 
 **Antes de empezar:** arranca el proyecto (`npm start`) y abre la página **Doctores** (`/xestionDoctores`). Crea alguna cita para algún doctor, y una de hoy para ver las dos últimas columnas.
 
 ## La idea
 
-La página de doctores no tiene las citas, así que se piden todas una vez y se cuentan. «Ocupado ahora» compara la hora actual con la de las citas de hoy: se supone que cada cita dura 30 minutos.
+La pantalla de doctores **no tiene las citas**: solo pide doctores y especialidades. Así que hay que pedir todas las citas una vez, al montar, y guardarlas en un `ref` para poder contarlas.
+
+«Ocupado ahora» compara la hora actual con la de las citas de hoy, suponiendo que cada consulta dura 30 minutos.
+
+> Esta pantalla **no tiene ningún componente de tabla**: el `<thead>` y el `<tr v-for>` están escritos a mano. Así que añadir una columna son dos cosas: un `<th>` en la cabecera y un `<td>` en el cuerpo. Y los dos tienen que ir en el mismo orden, o la tabla se descuadra.
 
 ## Qué vas a tocar
 
 | Fichero | Para qué |
 |---|---|
-| `src/components/XestionDoctores.vue` | Pedir las citas, las funciones y las columnas |
+| `src/components/XestionDoctores.vue` | El import, las funciones, la carga y las columnas |
 
 ## Paso 1 · El import
 
-En `src/components/XestionDoctores.vue`, busca la línea `import { datosParaPdf } from "../utils/tabla.js";` y pega esto **justo debajo**:
+Busca la línea `import { generarPDF } from "../utils/pdf.js";` y pega esto **justo debajo**:
 
 ```js
-// La función que pide las citas al servidor
-import { obtenerCitas } from "../api/citas.js";
+// Esta pantalla no pedia citas: hace falta para poder contarlas.
+import { getCitas } from "../api/citas.js";
 ```
 
 ## Paso 2 · Las funciones
 
-Busca la línea `// Columnas de la tabla (y del PDF). El doctor guarda el nombre de la especialidad.` y pega esto **justo encima**:
+Busca la línea `const doctorStore = useDoctorStore();` y pega esto **justo debajo**:
 
 ```js
-// Todas las citas, solo para contarlas. ref([]) = caja vigilada que empieza vacía.
+// Todas las citas, solo para contarlas. ref([]) = caja vigilada que empieza vacia.
 const todasLasCitas = ref([]);
 
-// Fecha de hoy "aaaa-mm-dd" y minutos transcurridos desde las 00:00 (horas * 60 + minutos)
-const ahora = new Date();
-const hoyTexto = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}-${String(ahora.getDate()).padStart(2, "0")}`;
-const minutosAhora = ahora.getHours() * 60 + ahora.getMinutes();
+// Fecha de hoy "aaaa-mm-dd" y minutos transcurridos desde las 00:00.
+const ahoraCitas = new Date();
+const hoyTexto = `${ahoraCitas.getFullYear()}-${String(ahoraCitas.getMonth() + 1).padStart(2, "0")}-${String(ahoraCitas.getDate()).padStart(2, "0")}`;
+const minutosAhora = ahoraCitas.getHours() * 60 + ahoraCitas.getMinutes();
 
-// Las citas de un doctor que no están canceladas
+// doctorId puede llegar como id suelto o como objeto poblado por Mongoose:
+// String(relacion?._id ?? relacion) deja las dos formas como texto comparable.
+function idDeDoctor(relacion) {
+  return String(relacion?._id ?? relacion ?? "");
+}
+
+// Las citas de un doctor que no estan canceladas.
 function citasDe(doctor) {
-  return todasLasCitas.value.filter((c) => c.doctorId === doctor.id && c.estado !== "cancelada");
+  return todasLasCitas.value.filter(
+    (item) => idDeDoctor(item.doctorId) === String(doctor._id) && item.estado !== "cancelada"
+  );
 }
 
 function citasDeHoy(doctor) {
-  return citasDe(doctor).filter((c) => c.fecha === hoyTexto).length;
+  return citasDe(doctor).filter((item) => item.fecha === hoyTexto).length;
 }
 
-// Se supone que cada cita dura 30 minutos. some devuelve true si ALGUNA cita cumple la condición:
-// que sea de hoy y que ahora caiga entre su hora de inicio y su hora de inicio + 30 minutos.
+// some devuelve true si ALGUNA cita cumple la condicion: que sea de hoy y que ahora
+// caiga entre su hora de inicio y esa hora mas 30 minutos.
 function ocupadoAhora(doctor) {
-  return citasDe(doctor).some((c) => {
-    if (c.fecha !== hoyTexto) return false;
-    const [h, m] = c.hora.split(":").map(Number); // "10:30" -> [10, 30]
+  return citasDe(doctor).some((item) => {
+    if (item.fecha !== hoyTexto) {
+      return false;
+    }
+    // "10:30" -> [10, 30]: split parte el texto y map(Number) pasa los trozos a numero.
+    const [h, m] = String(item.hora).split(":").map(Number);
     const inicio = h * 60 + m;
     return minutosAhora >= inicio && minutosAhora < inicio + 30;
   });
 }
 ```
 
-## Paso 3 · Las columnas
+> Aquí el doctor se identifica por `doctor._id`, no por `doctor.id`. En Mongo el campo se llama `_id` con guion bajo, y `doctor.id` sería `undefined`: todas las cuentas saldrían a 0.
 
-Busca la línea `{ clave: "espedoc", titulo: "Especialidade" },` y pega esto **justo debajo**:
+## Paso 3 · Cargar las citas
 
-```js
-  // Tres columnas inventadas: `formato` calcula el texto de cada fila (d = el doctor)
-  { clave: "ncitas", titulo: "Citas", formato: (d) => citasDe(d).length },
-  { clave: "hoxe", titulo: "Hoxe", formato: (d) => citasDeHoy(d) },
-  { clave: "ocupado", titulo: "Agora", formato: (d) => (ocupadoAhora(d) ? "Ocupado" : "Libre") },
-```
-
-## Paso 4 · Cargar las citas
-
-Busca la línea `Promise.all([especialidadStore.cargarEspecialidades(), doctorStore.cargarDoctores()])` y **sustitúyela** por:
+Busca la línea `  especialidades.value = await cargarEspecialidades();` y pega esto **justo debajo**:
 
 ```js
-  // Se piden a la vez las especialidades, los doctores y todas las citas (Promise.all espera a las tres)
-  Promise.all([
-    especialidadStore.cargarEspecialidades(),
-    doctorStore.cargarDoctores(),
-    obtenerCitas().then((citas) => (todasLasCitas.value = citas)),
-  ])
+  // .catch(() => []) deja la tabla funcionando aunque la API de citas falle:
+  // las columnas nuevas saldran a 0 en vez de romper la pantalla.
+  todasLasCitas.value = await getCitas().catch(() => []);
 ```
+
+## Paso 4 · Las cabeceras
+
+En el `<template>`, busca la línea `<th>Especialidade</th>` y pega esto **justo debajo**:
+
+```vue
+            <th>Citas</th>
+            <th>Hoxe</th>
+            <th>Agora</th>
+```
+
+## Paso 5 · Las celdas
+
+Busca la línea `<td>{{ doctor.espedoc }}</td>` y pega esto **justo debajo**:
+
+```vue
+            <td class="centrado">{{ citasDe(doctor).length }}</td>
+            <td class="centrado">{{ citasDeHoy(doctor) }}</td>
+            <!-- Las clases cambian segun el resultado para que se vea de un golpe -->
+            <td class="centrado">
+              <span :class="ocupadoAhora(doctor) ? 'font-bold text-[#b3261e]' : 'text-[#2f7d55]'">
+                {{ ocupadoAhora(doctor) ? "Ocupado" : "Libre" }}
+              </span>
+            </td>
+```
+
+Las tres celdas van en el mismo orden que las tres cabeceras del Paso 4.
+
+## Variante · Que las columnas salgan en el PDF
+
+Dentro de `exportarDoctores()`, busca `cabeceras: ["ID", "Apellidos", "Nombre", "Móvil", "Especialidad"],` y **sustitúyela** por:
+
+```js
+      cabeceras: ["ID", "Apellidos", "Nombre", "Móvil", "Especialidad", "Citas", "Hoy"],
+```
+
+Y busca `doctor.espedoc ?? "",` y **sustitúyela** por:
+
+```js
+        doctor.espedoc ?? "",
+        citasDe(doctor).length,
+        citasDeHoy(doctor),
+```
+
+Las cabeceras y las filas tienen que tener **el mismo número de elementos**, o `autoTable` deja huecos.
 
 ## Qué deberías ver
 
-1. Tres columnas nuevas: «Citas», «Hoxe» y «Agora».
+1. Tres columnas nuevas al final de la tabla: «Citas», «Hoxe» y «Agora».
 2. El total cuenta las citas no canceladas de cada doctor.
-3. «Ocupado» solo sale si el doctor tiene una cita de hoy que empezó hace menos de 30 minutos. El resto del tiempo, «Libre».
+3. «Ocupado» en rojo solo si el doctor tiene una cita de hoy que empezó hace menos de 30 minutos. El resto del tiempo, «Libre» en verde.
 
 ## Si algo falla
 
 | Síntoma | Causa y arreglo |
 |---|---|
-| Todo sale 0 y «Libre» | Falta el Paso 4, o `c.doctorId` no coincide con `doctor.id` |
+| Todo sale 0 y «Libre» | Comparaste con `doctor.id`: en Mongo es `doctor._id` |
+| Todo sale 0 aunque uses `_id` | Falta el Paso 3: `todasLasCitas` sigue vacío |
+| Todo sale 0 y hay citas | `doctorId` llega como objeto: de ahí la función `idDeDoctor` |
+| La tabla se descuadra | Hay más `<th>` que `<td>` o al revés: tienen que ser tres y tres |
 | «Ocupado» no sale nunca | Prueba con una cita de hoy cuya hora sea hace 10 minutos |
-| La tabla de doctores cambia con el filtro de especialidad | Es normal: las citas se cuentan para los doctores que se ven |
 | `citasDe is not defined` | El Paso 2 quedó dentro de otra función |
+| La hora no se actualiza | `minutosAhora` se calcula una vez al cargar: recarga la página, o móntalo con el reloj de [saludo y reloj](saludo-y-reloj.md) |
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| Columnas con `formato` | La celda muestra lo que devuelve la función | `03_lecciones/06_pdf.md §7` |
-| `Promise.all` | Pedir varias cosas a la vez | `03_lecciones/03_crud_api_rest.md §5` |
-| `filter` y `some` | Contar los que cumplen algo, o saber si alguno lo cumple | `03_lecciones/vue/03_v_for.md` |
+| Concepto | En una línea |
+|---|---|
+| Columna escrita a mano | Un `<th>` y un `<td>`, en el mismo orden |
+| `filter` y `some` | Contar los que cumplen algo, o saber si alguno lo cumple |
+| `_id` de Mongo | El identificador lleva guion bajo |
+| Horas en minutos | `h * 60 + m` permite comparar y sumar intervalos |
+| `.catch(() => [])` | Si la petición falla, seguir con una lista vacía |
 
 ## Guías relacionadas
 
 - [Columna contador](../columnas-y-filtros/columna-contador.md)
+- [Columna de otra tabla](../columnas-y-filtros/columna-de-otra-tabla.md)
+- [Horas libres](../mejoras-de-la-clinica/horas-libres.md)

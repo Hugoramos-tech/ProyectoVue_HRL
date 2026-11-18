@@ -6,111 +6,180 @@ La portada muestra las citas de hoy con su hora, el paciente y el doctor, ordena
 
 ## La idea
 
-Un `computed` en el `citaStore` se queda con las citas cuya fecha es hoy. La portada lo lee. Los nombres del paciente y el doctor salen de los otros stores, que también hay que cargar.
+En este proyecto las listas **no están en Pinia**: cada pantalla pide sus datos a la API y los guarda en un `ref([])` propio. La portada hará lo mismo: pide las tres listas al montarse y un `computed` se queda con las citas de hoy.
+
+```
+onMounted ──getCitas() + getPacientes() + getDoctores()──▶  tres ref([])
+                                                               │
+                                              computed citasHoxe (filtra por fecha)
+                                                               │
+                                                        lista en la portada
+```
+
+Hacen falta las tres listas porque la cita solo guarda el **DNI** del paciente y el **_id** del doctor: los nombres hay que buscarlos.
 
 ## Qué vas a tocar
 
 | Fichero | Para qué |
 |---|---|
-| `src/store/citaStore.js` | El `computed` `citasHoxe` |
-| `src/components/Inicio.vue` | Cargar los datos y pintar la lista |
+| `src/components/Inicio.vue` | Todo: los imports, la carga, el `computed` y la lista |
 
-## Paso 1 · El `computed` en el store
+## Paso 1 · La lógica
 
-En `src/store/citaStore.js`, hay tres cambios.
-
-Busca la línea `import { ref } from "vue";` y **sustitúyela** por (si ya dice `ref, computed`, déjala):
+En `src/components/Inicio.vue`, busca la línea `const clinicVideoUrl = '/assets/videos/clinica.mp4'` y pega esto **justo debajo**:
 
 ```js
-import { ref, computed } from "vue";
+import { computed, onMounted, ref } from "vue"
+import { getCitas } from "../api/citas.js"
+import { getPacientes } from "../api/pacientes.js"
+import { getDoctores } from "../api/doctores.js"
+
+// Las tres listas que hacen falta para pintar una linea completa.
+const citas = ref([])
+const pacientes = ref([])
+const doctores = ref([])
+
+// Fecha de hoy como texto "aaaa-mm-dd", el mismo formato en que el backend
+// guarda cita.fecha. getMonth() cuenta desde 0, por eso el +1; padStart pone el 0 delante.
+const hoy = new Date()
+const hoyTexto = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`
+
+// Las citas de hoy, ordenadas por hora.
+// [...] copia la lista antes de ordenar, porque sort() modifica el array que recibe.
+const citasHoxe = computed(() =>
+  [...citas.value]
+    .filter((c) => c.fecha === hoyTexto)
+    .sort((a, b) => String(a.hora).localeCompare(String(b.hora)))
+)
+
+// La cita guarda el DNI del paciente: su nombre se busca en la lista de pacientes.
+function nombrePacientePortada(dni) {
+  const buscado = String(dni ?? "").trim().toUpperCase()
+  const paciente = pacientes.value.find(
+    (p) => String(p.dnipac ?? "").trim().toUpperCase() === buscado
+  )
+  return paciente ? `${paciente.nomepac} ${paciente.apelpac}` : "Paciente no disponible"
+}
+
+// doctorId puede llegar como id suelto o como objeto poblado por Mongoose:
+// String(relacion?._id ?? relacion) deja las dos formas como texto.
+function nombreDoctorPortada(doctorId) {
+  const id = String(doctorId?._id ?? doctorId ?? "")
+  const doctor = doctores.value.find((d) => String(d._id) === id)
+  return doctor ? `${doctor.nomedoc} ${doctor.apeldoc}` : "Doctor no disponible"
+}
+
+// Promise.allSettled lanza las tres peticiones a la vez y NO se rompe si falla una:
+// cada resultado trae su propio status. Asi la portada sigue cargando aunque
+// MongoDB este caido (el video y el texto no dependen de la base de datos).
+onMounted(async () => {
+  const [resCitas, resPacientes, resDoctores] = await Promise.allSettled([
+    getCitas(),
+    getPacientes(),
+    getDoctores(),
+  ])
+
+  if (resCitas.status === "fulfilled") citas.value = resCitas.value
+  if (resPacientes.status === "fulfilled") pacientes.value = resPacientes.value
+  if (resDoctores.status === "fulfilled") doctores.value = resDoctores.value
+})
 ```
 
-Busca la línea `const idDoctor = ref("");` y pega **justo debajo**:
+> `getCitas()` sin argumentos devuelve **todas** las citas. El backend ya las ordena por fecha y hora, pero aquí se vuelve a ordenar porque después de filtrar solo importa la hora.
 
-```js
-  // Las citas de hoy, ordenadas por hora. toLocaleDateString("sv-SE") da AAAA-MM-DD en hora
-  // local (con toISOString saldría la fecha UTC y de madrugada fallaría).
-  const citasHoxe = computed(() => {
-    const hoxe = new Date().toLocaleDateString("sv-SE");
-    return citas.value
-      .filter((c) => c.fecha === hoxe)
-      .sort((a, b) => a.hora.localeCompare(b.hora));
-  });
-```
+> Las funciones se llaman `nombrePacientePortada` y `nombreDoctorPortada`, con ese «Portada» al final, para no confundirlas con las de `Citas.vue`, que se llaman `nombrePaciente` y `nombreDoctor` y hacen lo mismo en otra pantalla.
 
-Busca la línea que empieza por `return {` al final del store y **añade `citasHoxe`** a la lista. Si no hiciste el contador, queda así:
+## Paso 2 · La lista en la portada
 
-```js
-  return { citas, citasHoxe, idPaciente, idDoctor, cargarCitas, gardarCita, eliminarCitaPorId };
-```
-
-## Paso 2 · La lógica en la portada
-
-En `src/components/Inicio.vue`, hay dos cambios en el `<script setup>`.
-
-Busca la línea `import { Users, Stethoscope, CalendarDays, HeartPulse } from "lucide-vue-next";` y pega **justo debajo**:
-
-```js
-import { onMounted } from "vue";
-import { storeToRefs } from "pinia";
-import { useCitaStore } from "../store/citaStore.js";
-import { usepacienteStore } from "../store/pacienteStore.js";
-import { useDoctorStore } from "../store/doctorStore.js";
-```
-
-Busca la línea `const accesos = [` y pega **justo encima**:
-
-```js
-const citaStore = useCitaStore();
-const pacienteStore = usepacienteStore();
-const doctorStore = useDoctorStore();
-// storeToRefs: saca `citasHoxe` del store sin perder la reactividad
-const { citasHoxe } = storeToRefs(citaStore);
-
-// Se cargan las tres listas a la vez (Promise.all): hacen falta para pintar los nombres
-onMounted(() =>
-  Promise.all([citaStore.cargarCitas(), pacienteStore.cargarPacientes(), doctorStore.cargarDoctores()])
-);
-```
-
-## Paso 3 · La lista
-
-En `src/components/Inicio.vue`, busca la línea `  <nav` (la que abre el bloque de accesos; sus atributos `class` y `aria-label="Accesos rápidos"` están en las líneas de debajo). Pega esto **justo encima de esa línea `<nav`**, nunca entre sus atributos:
+En el `<template>`, busca la línea `</main>` y pega esto **justo encima**:
 
 ```vue
-  <section class="mb-6">
-    <h2 class="mb-2 text-xl font-semibold">Citas de hoxe</h2>
-    <!-- v-if / v-else: o el mensaje de "no hay citas" o la lista, nunca los dos -->
-    <p v-if="citasHoxe.length === 0" class="text-sm text-fg-soft">Hoxe non hai citas</p>
-    <ul v-else class="text-sm">
-      <!-- v-for: una línea por cita de hoy. nombrePorDni / nombrePorId convierten el identificador en nombre -->
-      <li v-for="c in citasHoxe" :key="c.id">
-        {{ c.hora }}: {{ pacienteStore.nombrePorDni(c.pacienteDNI) }} con {{ doctorStore.nombrePorId(c.doctorId) }}
-      </li>
-    </ul>
-  </section>
+    <section class="rounded-2xl border border-[#cfe0d6] bg-white p-5">
+      <h2 class="mb-3 text-xl font-bold text-[#153f2e]">
+        Citas de hoxe
+      </h2>
+      <!-- v-if / v-else: o el mensaje de "no hay" o la lista, nunca los dos -->
+      <p
+        v-if="citasHoxe.length === 0"
+        class="text-sm text-[#64737a]"
+      >
+        Hoxe non hai citas
+      </p>
+      <ul
+        v-else
+        class="flex flex-col gap-2 text-sm"
+      >
+        <!-- Una linea por cita de hoy. :key usa el _id, que es unico. -->
+        <li
+          v-for="c in citasHoxe"
+          :key="c._id"
+          class="flex flex-wrap gap-2 border-b border-[#e8f2ec] pb-2 last:border-0"
+        >
+          <strong class="text-[#14543a]">{{ c.hora }}</strong>
+          <span>{{ nombrePacientePortada(c.pacienteDNI) }}</span>
+          <span class="text-[#64737a]">con {{ nombreDoctorPortada(c.doctorId) }}</span>
+        </li>
+      </ul>
+    </section>
 ```
+
+> Si ya hiciste la receta de [elegir en una página y usarlo en otra](pinia-seleccion.md), ahí pegaste otro bloque justo encima de `</main>`. No importa: pon este debajo del otro, los dos caben.
+
+## Variante · Solo las que quedan por venir
+
+Si quieres que desaparezcan las que ya se atendieron, cambia el `filter` del `computed` por:
+
+```js
+    .filter((c) => c.fecha === hoyTexto && c.estado !== "realizada" && c.estado !== "cancelada")
+```
+
+## Variante · Las próximas, no solo las de hoy
+
+Cambiando el `computed` tienes «las cinco próximas citas»:
+
+```js
+const citasHoxe = computed(() =>
+  [...citas.value]
+    // >= en lugar de ===: hoy y todo lo que venga despues
+    .filter((c) => c.fecha >= hoyTexto)
+    .sort((a, b) => `${a.fecha}${a.hora}`.localeCompare(`${b.fecha}${b.hora}`))
+    // slice(0, 5) corta las cinco primeras
+    .slice(0, 5)
+)
+```
+
+Las fechas son textos `aaaa-mm-dd`, así que `>=` y `localeCompare` las comparan en orden cronológico sin convertirlas a `Date`.
 
 ## Qué deberías ver
 
-1. En la portada, una sección «Citas de hoxe».
+1. En la portada, debajo de la imagen grande, una sección «Citas de hoxe».
 2. Sin citas hoy: «Hoxe non hai citas».
-3. Crea una cita con la fecha de hoy y vuelve a la portada: aparece con su hora y los nombres.
+3. Crea una cita con la fecha de hoy y vuelve a la portada: aparece con su hora y los dos nombres.
+4. Si hay varias, salen ordenadas por hora.
 
 ## Si algo falla
 
 | Síntoma | Causa y arreglo |
 |---|---|
-| Siempre «Hoxe non hai citas» | La fecha de la cita no es la de hoy, o la lista del store está filtrada por paciente o doctor |
-| Salen guiones «—» en vez de nombres | Faltan cargar pacientes o doctores: revisa el `onMounted` del Paso 2 |
-| `citasHoxe is not defined` | Falta añadirlo al `return` del store |
-| Las horas salen desordenadas | Falta el `.sort(...)` del Paso 1 |
+| Siempre «Hoxe non hai citas» | `hoyTexto` no coincide con el formato de `c.fecha`: compáralos con un `console.log` |
+| Sale «Paciente no disponible» | La lista de pacientes no cargó, o el DNI de la cita ya no existe en pacientes |
+| Sale «Doctor no disponible» | Falta normalizar `doctorId`: puede llegar como objeto, de ahí el `?._id ??` |
+| `citasHoxe is not defined` | El Paso 1 quedó fuera del `<script setup>` |
+| Error 503 en la consola | MongoDB no está arrancado. La portada se queda sin citas, pero no se rompe |
+| Las horas salen desordenadas | Falta el `.sort(...)` |
+| `nombrePaciente is not defined` | En esta pantalla las funciones llevan «Portada» al final |
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| Store de Pinia | Un objeto compartido entre páginas, con estado y acciones | `03_lecciones/07_pinia.md §4` |
-| `computed` | Un dato que se calcula solo a partir de otros y se rehace cuando cambian | `03_lecciones/vue/07_computed.md` |
-| `storeToRefs` | Sacar datos de un store sin perder la reactividad | `03_lecciones/07_pinia.md §6` |
-| `onMounted` | Código que se ejecuta al aparecer el componente en pantalla | `03_lecciones/01_reactividad.md §6` |
+| Concepto | En una línea |
+|---|---|
+| `computed` | Un dato que se calcula solo y se rehace cuando cambia lo que lee |
+| `onMounted` | Código que se ejecuta al aparecer el componente en pantalla |
+| `Promise.allSettled` | Lanzar varias peticiones a la vez sin que una que falla tumbe al resto |
+| Fechas como texto | `aaaa-mm-dd` se compara con `<`, `>` y `===` sin convertir a `Date` |
+
+## Guías relacionadas
+
+- [Elegir en una página y usarlo en otra](pinia-seleccion.md)
+- [Contador en el menú](contador-en-el-menu.md)
+- [La próxima cita del paciente](../mejoras-de-la-clinica/proxima-cita-del-paciente.md)

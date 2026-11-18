@@ -2,128 +2,190 @@
 
 Un desplegable para elegir el orden de las citas, un botón para invertirlo y paginación de cinco en cinco.
 
-*Versión extendida, con variantes y más casos: [apuntes a fondo, apartado 8](../../detalle/01-listas-filtros-y-busqueda.md).*
+**Antes de empezar:** arranca el proyecto (`npm start`) y abre la página **Citas** (`/citas`). Para ver más de una página necesitas más de 5 citas.
 
-**Antes de empezar:** arranca el proyecto (`npm start`) y abre la página **Citas** (`/citas`). Para ver las páginas necesitas más de 5 citas.
+## La idea
+
+Las tres cosas se encadenan con `computed`: primero se ordena la lista, después se corta la página que toca, y la tabla lee **la última** de la cadena.
+
+```
+citas ─▶ citasOrdenadas ─▶ citasPagina ─▶ tabla
+         (ordena)          (corta 5)
+```
+
+En este proyecto las funciones auxiliares viven dentro del propio componente, así que **no hace falta crear ningún fichero nuevo**.
 
 ## Qué vas a tocar
 
 | Fichero | Para qué |
 |---|---|
-| `src/utils/listas.js` | Fichero **nuevo** con las dos funciones |
-| `src/components/Citas.vue` | Los controles, la lista paginada y la tabla |
+| `src/components/Citas.vue` | Las funciones, los controles, la lista paginada y la tabla |
 
-## Paso 1 · Crear `src/utils/listas.js`
+## Paso 1 · Los imports
 
-Crea el fichero `src/utils/listas.js` con este contenido:
+**No hay que tocar nada.** La primera línea del `<script setup>` ya es:
 
 ```js
-// Devuelve una lista nueva ordenada por `clave`. [...lista] copia el array antes de ordenar,
-// porque sort() modifica el array que recibe y no debemos alterar el original del store.
-export function ordenarPor(lista, clave, ascendente = true) {
-  const sentido = ascendente ? 1 : -1; // 1 = de menor a mayor; -1 = al revés
+import { computed, onMounted, reactive, ref, watch } from "vue"
+```
+
+`ref`, `computed` y `watch` ya están.
+
+## Paso 2 · Orden, página y las dos funciones
+
+Busca la línea `// Al abrir la pantalla basta con que haya un paciente o un doctor seleccionado.` y pega este bloque **justo encima**:
+
+```js
+// Orden y paginacion. Cada ref es una caja vigilada: si cambia, la tabla se repinta.
+const claveOrden = ref("fecha")  // por que campo se ordena
+const ascendente = ref(true)     // true = de menor a mayor
+const pagina = ref(1)            // pagina que se ve (la primera es la 1)
+const TAMANO = 5                 // citas por pagina (constante: no cambia)
+
+// Devuelve una lista NUEVA ordenada por clave. [...lista] copia el array antes de
+// ordenar, porque sort() modifica el array que recibe y no queremos tocar el original.
+function ordenarPor(lista, clave, asc) {
+  const sentido = asc ? 1 : -1
   return [...lista].sort(
-    // localeCompare compara dos textos respetando tildes y ñ. Multiplicar por `sentido` invierte el resultado.
-    (a, b) => String(a[clave]).localeCompare(String(b[clave]), "es") * sentido
-  );
+    // localeCompare compara textos respetando tildes y la ñ; numeric pone "9" antes de "10".
+    // Multiplicar por el sentido (1 o -1) invierte el resultado.
+    (a, b) =>
+      String(a[clave] ?? "").localeCompare(String(b[clave] ?? ""), "es", { numeric: true }) *
+      sentido
+  )
 }
 
-// Devuelve solo los elementos de la página pedida (la primera es la 1).
-export function paxinar(lista, pagina, tamano) {
-  // Página 1 empieza en la posición 0; la 2, en 5 (si el tamaño es 5)...
-  const inicio = (pagina - 1) * tamano;
+// Devuelve solo los elementos de la pagina pedida.
+function paginar(lista, pag, tamano) {
+  // Pagina 1 empieza en la posicion 0; la 2, en 5 (si el tamano es 5)...
+  const inicio = (pag - 1) * tamano
   // slice(desde, hasta) corta un trozo de la lista sin modificarla
-  return lista.slice(inicio, inicio + tamano);
+  return lista.slice(inicio, inicio + tamano)
 }
+
+// La cadena. Si ya hiciste la receta del filtro, cambia las DOS apariciones de
+// `citas.value` de estas tres lineas por `citasFiltradas.value`.
+const citasOrdenadas = computed(() => ordenarPor(citas.value, claveOrden.value, ascendente.value))
+const citasPagina = computed(() => paginar(citasOrdenadas.value, pagina.value, TAMANO))
+// Math.ceil redondea hacia arriba: 11 citas / 5 = 2,2 -> 3 paginas.
+// Math.max(1, ...) evita que ponga "1 / 0" cuando no hay ninguna.
+const totalPaginas = computed(() => Math.max(1, Math.ceil(citas.value.length / TAMANO)))
+
+// Si cambia el orden o el total de citas, se vuelve a la primera pagina.
+// Si no, puedes quedarte en la pagina 4 de una lista que ahora solo tiene 2.
+watch([claveOrden, ascendente, () => citas.value.length], () => {
+  pagina.value = 1
+})
 ```
 
-## Paso 2 · Importarlas
+## Paso 3 · Los controles
 
-En `src/components/Citas.vue`, busca la línea `import { useFormulario } from "../composables/useFormulario.js";` y pega esto **justo debajo**:
+En el `<template>`, busca la línea `<div class="citas-cabecera-lista">` y pega esto **justo encima**:
+
+```vue
+      <div class="mb-3 flex flex-wrap items-center gap-3">
+        <select v-model="claveOrden">
+          <option value="fecha">Ordenar por data</option>
+          <option value="hora">Ordenar por hora</option>
+          <option value="estado">Ordenar por estado</option>
+          <option value="motivo">Ordenar por motivo</option>
+        </select>
+        <!-- ascendente = !ascendente invierte el valor: true pasa a false y al reves -->
+        <button
+          class="citas-boton-secundario"
+          type="button"
+          title="Invertir el orden"
+          @click="ascendente = !ascendente"
+        >
+          {{ ascendente ? "↑" : "↓" }}
+        </button>
+      </div>
+```
+
+## Paso 4 · La tabla lee la página
+
+**4.1** Busca la línea `v-else-if="citas.length"` y **sustitúyela** por:
+
+```vue
+        v-else-if="citasOrdenadas.length"
+```
+
+> Aquí va `citasOrdenadas`, no `citasPagina`: lo que decide si se enseña la tabla es si hay **alguna** cita, no si hay alguna en esta página.
+
+**4.2** Busca `v-for="item in citas"` y **sustitúyela** por:
+
+```vue
+              v-for="item in citasPagina"
+```
+
+## Paso 5 · Los botones de página
+
+Busca la línea `</table>` y pega esto **justo debajo**:
+
+```vue
+          <!-- :disabled apaga el boton en la primera y en la ultima pagina.
+               pagina-- y pagina++ restan y suman 1 -->
+          <div class="mt-3 flex items-center justify-end gap-3 text-sm">
+            <button
+              class="citas-boton-secundario"
+              type="button"
+              :disabled="pagina === 1"
+              @click="pagina--"
+            >
+              Anterior
+            </button>
+            <span>{{ pagina }} / {{ totalPaginas }}</span>
+            <button
+              class="citas-boton-secundario"
+              type="button"
+              :disabled="pagina === totalPaginas"
+              @click="pagina++"
+            >
+              Seguinte
+            </button>
+          </div>
+```
+
+## Variante · El PDF ordenado y completo
+
+Lo normal es que el PDF traiga **todas** las citas ordenadas, no solo la página que se ve. Dentro de `exportarCitas()`, busca `filas: citas.value.map((item) => [` y **sustitúyela** por:
 
 ```js
-import { ordenarPor, paxinar } from "../utils/listas.js";
+      filas: citasOrdenadas.value.map((item) => [
 ```
 
-Si la línea `import { computed, watch } from "vue";` no incluye `ref`, **sustitúyela** por `import { ref, computed, watch } from "vue";`.
-
-## Paso 3 · Orden y página
-
-En `src/components/Citas.vue`, busca la línea `// Texto de la tabla cuando no hay filas: distingue "no hay citas" de "no hay con este filtro".` y pega este bloque **justo encima**:
-
-```js
-// Orden y paginación. Cada ref es una caja vigilada: si cambia, la tabla se repinta.
-const claveOrden = ref("fecha");   // por qué campo se ordena
-const ascendente = ref(true);      // true = de menor a mayor
-const pagina = ref(1);             // página que se ve (empieza en 1)
-const TAMANO = 5;                  // citas por página (constante: no cambia)
-
-// Se encadenan: primero se ordena, después se corta la página. Cada computed lee el anterior.
-// Si ya hiciste la receta del filtro, cambia `citas.value` por `citasFiltradas.value`.
-const citasOrdenadas = computed(() => ordenarPor(citas.value, claveOrden.value, ascendente.value));
-const citasPagina = computed(() => paxinar(citasOrdenadas.value, pagina.value, TAMANO));
-// Math.ceil redondea hacia arriba: 11 citas / 5 = 2,2 -> 3 páginas. Math.max(1, ...) evita "0 páginas".
-const totalPaginas = computed(() => Math.max(1, Math.ceil(citas.value.length / TAMANO)));
-```
-
-## Paso 4 · Controles de orden
-
-En `src/components/Citas.vue`, busca el comentario `<!-- Exporta a PDF todas las citas que hay ahora en la tabla -->`. Justo debajo hay un `<template #acciones>`. **Dentro de él, antes del `<AppButton`**, pega:
-
-```vue
-<!-- @change="pagina = 1": al cambiar el criterio se vuelve a la primera página -->
-<select v-model="claveOrden" @change="pagina = 1">
-  <option value="fecha">Ordenar por data</option>
-  <option value="hora">Ordenar por hora</option>
-  <option value="estado">Ordenar por estado</option>
-</select>
-<!-- ascendente = !ascendente: invierte el valor (true pasa a false y al revés) -->
-<AppButton title="Invertir el orden" @click="ascendente = !ascendente">
-  {{ ascendente ? "↑" : "↓" }}
-</AppButton>
-```
-
-## Paso 5 · La tabla lee la página
-
-Busca la línea `:filas="citas"` y **sustitúyela** por (si hiciste el filtro, ya dirá `citasFiltradas`; sustitúyela igualmente):
-
-```vue
-:filas="citasPagina"
-```
-
-## Paso 6 · Botones de página
-
-En `src/components/Citas.vue`, busca el cierre `</DataTable>` y pega esto **justo debajo**:
-
-```vue
-<div class="mt-4 flex items-center justify-end gap-3 text-sm">
-  <!-- :disabled apaga el botón en la primera/última página. pagina-- y pagina++ restan y suman 1 -->
-  <AppButton :disabled="pagina === 1" @click="pagina--">Anterior</AppButton>
-  <span>{{ pagina }} / {{ totalPaginas }}</span>
-  <AppButton :disabled="pagina === totalPaginas" @click="pagina++">Seguinte</AppButton>
-</div>
-```
+Si lo que quieres es justo lo contrario (solo la página), pon `citasPagina.value`.
 
 ## Qué deberías ver
 
-1. Un desplegable de orden y una flecha junto al botón PDF.
+1. Un desplegable de orden y una flecha encima de «📋 Listado de citas».
 2. La tabla muestra 5 citas como máximo.
-3. Abajo, «1 / 2» con Anterior y Seguinte; Anterior está desactivado en la primera página.
-4. Elegir otro orden o pulsar la flecha reordena la lista.
+3. Debajo de la tabla, «1 / 2» con Anterior y Seguinte; Anterior está apagado en la primera página.
+4. Elegir otro orden o pulsar la flecha reordena la lista y vuelve a la página 1.
 
 ## Si algo falla
 
 | Síntoma | Causa y arreglo |
 |---|---|
-| Salen todas las citas | La tabla sigue leyendo `citas` o `citasFiltradas`: falta el Paso 5 |
-| Un filtro deja la tabla vacía | Estabas en la página 4 y el filtro tiene 3 resultados: añade `watch(filtroEstado, () => { pagina.value = 1 })` |
-| El orden cambia también en otras pantallas | Ordenas `citas.value` directamente con `sort`: usa `ordenarPor`, que copia antes |
-| «Seguinte» no se desactiva | `totalPaginas` cuenta una lista distinta de la que pagina |
+| Salen todas las citas | Falta el Paso 4.2: la tabla sigue leyendo `citas` |
+| La tabla sale vacía pero hay citas | Estás en una página que ya no existe: el `watch` del Paso 2 es lo que lo evita |
+| `paginar is not defined` | El Paso 2 quedó dentro de otra función |
+| Ordena mal los números | Falta `{ numeric: true }` en el `localeCompare` |
+| El orden cambia también en otras pantallas | Estás ordenando `citas.value` directamente: `ordenarPor` copia antes con `[...lista]` |
+| «Seguinte» no se apaga nunca | `totalPaginas` cuenta una lista distinta de la que se pagina |
+| Los botones salen fuera de la tabla | El Paso 5 va **dentro** del `<div class="citas-tabla-wrapper">`, justo tras `</table>` |
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| `computed` | Un dato que se calcula solo a partir de otros y se rehace cuando cambian | `03_lecciones/vue/07_computed.md` |
-| `ref` | Una caja vigilada: si su valor cambia, la pantalla se repinta | `03_lecciones/01_reactividad.md §2` |
-| `v-for` con `:key` | Repite un elemento por cada elemento de una lista | `03_lecciones/vue/03_v_for.md` |
+| Concepto | En una línea |
+|---|---|
+| `computed` encadenado | Cada lista parte de la anterior, no de la original |
+| `sort` y `[...lista]` | Ordenar una copia para no tocar la lista original |
+| `slice` | Cortar un trozo de una lista sin modificarla |
+| `watch` | Hacer algo cuando cambia un dato |
+
+## Guías relacionadas
+
+- [Filtro en el cliente](filtro-en-cliente.md)
+- [Ordenar por cabecera](../columnas-y-filtros/ordenar-por-cabecera.md)
+- [Combinar varios filtros y ordenar](../columnas-y-filtros/combinar.md)
