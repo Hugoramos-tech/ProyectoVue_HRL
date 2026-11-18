@@ -2,14 +2,14 @@
 
 [← Índice](README.md) · [Siguiente: formularios y campos →](02-formularios-y-campos.md)
 
-Todo lo que pueden pedirte sobre **qué se ve en una tabla**: filtrar, buscar, ordenar, paginar y contar. Está pensado para no salir de esta página: cada concepto se explica donde se usa, con un enlace por si quieres la lección completa.
+Todo lo que pueden pedirte sobre **qué se ve en una tabla**: filtrar, buscar, ordenar, paginar y contar. Está pensado para no salir de esta página.
 
 ## En esta página
 
 1. [Cliente o servidor](#1-cliente-o-servidor)
 2. [Lo que necesitas saber](#2-lo-que-necesitas-saber)
-3. [Las piezas del proyecto](#3-las-piezas-del-proyecto)
-4. [Filtrar por estado y por doctor](#4-filtrar-por-estado-y-por-doctor)
+3. [Las piezas de tu proyecto](#3-las-piezas-de-tu-proyecto)
+4. [Filtrar por estado](#4-filtrar-por-estado)
 5. [Buscador de texto](#5-buscador-de-texto)
 6. [Rango de fechas](#6-rango-de-fechas)
 7. [Filtrar por especialidad a través del doctor](#7-filtrar-por-especialidad-a-través-del-doctor)
@@ -18,350 +18,505 @@ Todo lo que pueden pedirte sobre **qué se ve en una tabla**: filtrar, buscar, o
 10. [Hacerlo en el servidor](#10-hacerlo-en-el-servidor)
 11. [Si te piden esto, mira aquí](#11-si-te-piden-esto-mira-aquí)
 12. [Fallos que quitan puntos](#12-fallos-que-quitan-puntos)
-13. [Recetas cortas y lecciones](#13-recetas-cortas-y-lecciones)
+13. [Recetas cortas](#13-recetas-cortas)
 
 ## 1. Cliente o servidor
 
 Hay dos sitios donde filtrar y el enunciado casi nunca dice cuál. Decídelo tú:
 
-![Filtrar en el cliente usa la lista ya cargada; en el servidor se vuelve a pedir con parámetros](img/cliente-o-servidor.png)
-
 | | En el cliente | En el servidor |
 |---|---|---|
-| Cómo | Un `computed` filtra la lista que ya tienes | Se vuelve a pedir la lista con `?estado=...` |
-| Velocidad | Instantáneo, sin red | Una petición por cambio |
-| Hace falta tocar el backend | No | Sí, y reiniciarlo |
-| Con muchos datos | Se vuelve lento: bajas todo | Bien: solo bajas lo que se ve |
-| El enunciado dice | «filtro», «buscador» | «el backend admite `?estado=`», «`curl` devuelve solo...» |
+| Cómo | Un `computed` filtra la lista que ya tienes | Se vuelve a pedir con un parámetro en la URL |
+| Velocidad | Instantáneo, sin red | Una petición por cada cambio |
+| ¿Hay que tocar el backend? | No | Sí, y reiniciarlo |
+| Con muchos datos | Se vuelve lento: te bajas todo | Bien: solo bajas lo que se ve |
+| El PDF y los contadores | Solo de lo cargado | De todo lo que cumple el filtro |
+| El enunciado dice | «un filtro», «un buscador» | «el backend admite `?estado=`», «`curl` devuelve solo…» |
 
-Regla práctica: si el enunciado habla de `curl`, de parámetros de la URL o de que «el backend» filtre, es servidor. Si habla de la pantalla, cliente.
+Regla práctica: si el enunciado habla de parámetros de la URL, de `curl` o de que «el
+backend» filtre, es **servidor**. Si habla de la pantalla, **cliente**.
+
+Si te dejan elegir y hay prisa: cliente. Se hace en tres pasos y se explica bien.
 
 ## 2. Lo que necesitas saber
 
-**`ref`**: una caja vigilada. Guarda un valor, y si cambia, Vue repinta lo que lo usa. En el script se lee y se escribe con `.value`; en el template, sin `.value`. Aquí guarda lo que eligió el usuario en un filtro. → `03_lecciones/01_reactividad.md §2`
+**`ref`**: una caja que Vue vigila. Si su valor cambia, se repinta lo que lo usa. En el
+script se lee y se escribe con `.value`; en el template, **sin** `.value`.
 
-**`v-model`**: ata un campo del formulario a un `ref` en los dos sentidos. Escribes en el campo y cambia el `ref`; cambias el `ref` y cambia el campo. En un `<select>`, el valor es el `:value` de la opción elegida, no el texto que se ve. → `03_lecciones/vue/02_v_model.md`
+**`v-model`**: ata un campo del formulario a un dato en los dos sentidos. En un `<select>`,
+lo que se guarda es el `:value` de la opción elegida, no el texto que se ve.
 
-**`computed`**: un dato que sale de otros. No lo asignas; escribes la fórmula y Vue la recalcula cuando cambia algo de lo que lee. Es la pieza de todos los filtros del cliente. → `03_lecciones/vue/07_computed.md`
+**`computed`**: un dato que sale de otros. No lo asignas: escribes la fórmula y Vue la
+recalcula cuando cambia algo de lo que lee. Es la pieza de **todos** los filtros del cliente.
 
-**`filter` e `includes`**: `lista.filter((x) => condición)` devuelve un array nuevo con los elementos que cumplen la condición, sin tocar el original. `texto.includes("ab")` dice si el texto contiene «ab». Con una cadena vacía, `includes("")` es siempre `true`: por eso un buscador vacío deja pasar todo.
+**`filter` e `includes`**: `lista.filter((x) => condición)` devuelve un array **nuevo** con
+los que cumplen la condición, sin tocar el original. `texto.includes("ab")` dice si el texto
+contiene «ab». Con una cadena vacía, `includes("")` es siempre `true`: por eso un buscador
+vacío deja pasar todo, sin tener que escribir un caso aparte.
 
-**Parámetros de la URL** (`?estado=pendente&fecha=2026-11-19`): lo que va detrás del `?`. En Express se leen en `req.query`; en axios se mandan con `{ params: { estado: "pendente" } }`. → `03_lecciones/03_crud_api_rest.md §3 y §5`
+**Parámetros de la URL** (`?pacienteDNI=12345678Z&estado=pendente`): lo que va detrás del
+`?`. En Express se leen en `req.query`; con axios se mandan en `{ params: {...} }`.
 
-**Orden de las condiciones**: `a && b` exige las dos. Un filtro opcional se escribe `(!filtro || cumple)`: si el filtro está vacío, vale; si no, tiene que cumplirse. Es la fórmula que se repite en todo este documento.
+**La fórmula del filtro opcional**: `(!filtro || cumple)`. Si el filtro está vacío, pasa
+todo; si tiene valor, tiene que cumplirse. Se repite en todo este documento.
 
-## 3. Las piezas del proyecto
+**Fechas y horas como texto**: en este proyecto la fecha es `aaaa-mm-dd` y la hora `hh:mm`.
+Los dos formatos se comparan con `<`, `>` y `===` **sin convertirlos**, porque están
+ordenados de lo más general a lo más concreto. Es el motivo de que se guarden así.
 
-Qué toca cada fichero cuando filtras citas:
+## 3. Las piezas de tu proyecto
 
-| Fichero | Qué hay | Para qué lo usas aquí |
+Qué hay en cada sitio cuando filtras citas:
+
+| Fichero | Qué hay dentro | Para qué lo usas |
 |---|---|---|
-| `src/components/Citas.vue` | `citas`, `estados`, `columnas`, `textoVacio`, `descargarPdf` | Añadir los filtros y la lista filtrada |
-| `src/store/citaStore.js` | `citas`, `idPaciente`, `idDoctor`, `cargarCitas()` | Filtros del servidor |
-| `src/api/citas.js` | `obtenerCitas({ paciente, doctor })` | Mandar parámetros nuevos |
-| `backend/rutas/citas.rutas.js` | `router.get('/')` con un objeto `filtro` | Leer parámetros nuevos |
-| `src/components/ui/DataTable.vue` | Recibe `:filas`, `:columnas`, `:vacio` | No se toca: solo le pasas otra lista |
+| `src/components/Citas.vue` | `citas`, `doctores`, `cargando`, `etiquetaEstado()`, `nombreDoctor()`, `nombrePaciente()` | Añadir los filtros y la lista filtrada |
+| `src/api/citas.js` | `getCitas(filtros)` → `axios.get(URL, { params: filtros })` | Mandar parámetros nuevos sin tocar nada |
+| `backend/rutas/citas.rutas.js` | `router.get("/")` con un objeto `filtros` | Leer parámetros nuevos |
+| `src/store/pacienteStore.js` y `doctorStore.js` | Quién está seleccionado | Lo que ya filtra la pantalla al entrar |
 
-Dentro de `XestionCitas.vue` ya existen `estados` (lista con `valor` y `texto`), `doctores` (los doctores, del store) y `etiquetaEstado(valor)`. Los usaremos sin redefinirlos.
+Tres cosas de tu proyecto que conviene tener claras antes de empezar:
 
-## 4. Filtrar por estado y por doctor
+1. **No hay componente de tabla.** La cabecera y las filas están escritas a mano en cada
+   pantalla, con `<th>` y `<td>`. Añadir o quitar una columna son siempre **dos** cambios.
+2. **Pinia no guarda las listas.** Solo guarda quién está seleccionado. Las listas viven en
+   un `ref` dentro de cada componente.
+3. **`XestionPacientes.vue` no importa `computed`.** Solo `ref`, `reactive` y `onMounted`.
+   Cualquier filtro que hagas ahí empieza por arreglar ese import.
 
-Dos desplegables y un `computed`. Añade `ref` al import de `vue`:
+## 4. Filtrar por estado
+
+El caso más pedido. Tres piezas, siempre las mismas.
+
+**El valor del filtro.** En `Citas.vue`, con los demás `ref`:
 
 ```js
-import { ref, computed, watch } from "vue";
+// "" significa "todos". ref porque es un valor suelto.
+const filtroEstado = ref("")
+```
 
-const filtroEstado = ref("");
-const filtroDoctor = ref("");
+**La lista filtrada.** Un `computed`, nunca una variable normal:
 
+```js
+// La lista original no se toca: computed devuelve una lista NUEVA.
+// Si el filtro esta vacio, se devuelven todas.
+const citasFiltradas = computed(() =>
+  filtroEstado.value
+    ? citas.value.filter((item) => item.estado === filtroEstado.value)
+    : citas.value
+)
+```
+
+**El selector y la tabla.** En el template:
+
+```vue
+        <select v-model="filtroEstado">
+          <option value="">Todos los estados</option>
+          <option value="pendente">Pendiente</option>
+          <option value="confirmada">Confirmada</option>
+          <option value="realizada">Realizada</option>
+          <option value="cancelada">Cancelada</option>
+        </select>
+```
+
+Y en el `v-for` de la tabla, cambiar `citas` por `citasFiltradas`.
+
+**Ese tercer paso es el que se olvida.** Sin él el filtro funciona perfectamente y la tabla
+sigue mostrando todo, que es el fallo más desesperante de depurar porque no da ningún error.
+
+Los `value` tienen que ser los que guarda el backend (`pendente`, con «e»), no las etiquetas
+que se ven. Para eso está `etiquetaEstado()`.
+
+### Dos filtros a la vez
+
+No se encadenan dos `computed`: se juntan las condiciones con `&&`.
+
+```js
 const citasFiltradas = computed(() =>
   citas.value.filter(
-    (c) =>
-      (!filtroEstado.value || c.estado === filtroEstado.value) &&
-      (!filtroDoctor.value || c.doctorId === filtroDoctor.value)
+    (item) =>
+      // Cada linea es "o el filtro esta vacio, o se cumple".
+      (!filtroEstado.value || item.estado === filtroEstado.value) &&
+      (!filtroDoctor.value || String(item.doctorId) === String(filtroDoctor.value))
   )
-);
+)
 ```
 
-En el template, dentro del slot `#acciones` de la sección del listado. La opción con `value=""` es «Todos»:
-
-```vue
-<select v-model="filtroEstado">
-  <option value="">Todos os estados</option>
-  <option v-for="e in estados" :key="e.valor" :value="e.valor">{{ e.texto }}</option>
-</select>
-<select v-model="filtroDoctor">
-  <option value="">Todos os doctores</option>
-  <option v-for="d in doctores" :key="d.id" :value="d.id">{{ d.nomedoc }} {{ d.apeldoc }}</option>
-</select>
-```
-
-La tabla y el PDF pasan a leer la lista filtrada:
-
-```vue
-<DataTable :columnas="columnas" :filas="citasFiltradas" :cargando="cargando" :vacio="textoVacio" />
-```
-
-```js
-const { cabeceras, filas } = datosParaPdf(columnas, citasFiltradas.value);
-```
-
-**Qué deberías ver**: al elegir un doctor, la tabla cambia al instante; con «Todos», vuelve la lista entera; el PDF trae las mismas filas que ves.
-
-Receta corta con su diagrama: [filtro en el cliente](../funcionalidades/listas/filtro-en-cliente.md).
+Esa estructura crece sin despeinarse: cada filtro nuevo es una línea más con `&&`.
 
 ## 5. Buscador de texto
 
-Un campo que filtra mientras se escribe. Sin mayúsculas y sin tildes, para que `lopez` encuentre «López».
-
-Primero una función en `src/utils/texto.js`. `normalize("NFD")` separa cada letra de su tilde, y la expresión regular borra las tildes sueltas:
+Buscar en varios campos a la vez, sin distinguir mayúsculas **ni tildes**.
 
 ```js
-export function normalizar(texto) {
-  return String(texto)
+const busqueda = ref("")
+
+// Pasa a minusculas y quita las tildes.
+// normalize("NFD") separa la letra de su tilde: "á" pasa a ser "a" + la tilde suelta.
+// Luego se borran esas marcas, que estan en el rango unicode 0300-036f.
+function normalizar(texto) {
+  return String(texto ?? "")
+    .toLowerCase()
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
 }
-```
 
-Después un `ref` y un `computed` que **parte de la lista ya filtrada** del apartado 4, así los filtros se suman:
+const pacientesFiltrados = computed(() => {
+  const q = normalizar(busqueda.value).trim()
 
-```js
-import { normalizar } from "../utils/texto.js";
+  // includes("") es siempre true, pero este atajo evita normalizar toda la lista.
+  if (!q) {
+    return pacientes.value
+  }
 
-const busca = ref("");
-
-const citasVisibles = computed(() => {
-  const q = normalizar(busca.value.trim());
-  if (!q) return citasFiltradas.value;
-  return citasFiltradas.value.filter((c) =>
-    normalizar(`${c.motivo} ${pacienteStore.nombrePorDni(c.pacienteDNI)}`).includes(q)
-  );
-});
+  return pacientes.value.filter((p) =>
+    // Se juntan los campos en los que se quiere buscar y se mira si contiene el texto.
+    normalizar(`${p.nomepac} ${p.apelpac} ${p.dnipac} ${p.mailpac}`).includes(q)
+  )
+})
 ```
 
 ```vue
-<input v-model="busca" type="search" placeholder="Buscar por motivo ou paciente">
-<DataTable :columnas="columnas" :filas="citasVisibles" :cargando="cargando"
-  :vacio="busca ? 'Ningunha cita coincide coa busca.' : textoVacio" />
+        <input v-model="busqueda" type="search" placeholder="Buscar...">
 ```
 
-Cuando hay dos `computed` encadenados, el último es el que se pasa a la tabla y al PDF. Cambia `citasFiltradas.value` por `citasVisibles.value` en `descargarPdf`.
+Lo de las tildes es lo que separa un buscador que funciona de uno que no encuentra «López»
+si escribes «lopez». Merece la pena escribirlo bien.
 
-Para buscar en doctores: lo mismo con `doctores.value` y `${d.nomedoc} ${d.apeldoc}`. Receta corta: [buscador](../funcionalidades/listas/buscador.md).
+En `XestionPacientes.vue` hace falta **añadir `computed`** al import de Vue.
+
+### Que no busque en cada tecla
+
+Con muchos registros, o si la búsqueda va al servidor, conviene esperar a que el usuario pare
+de escribir:
+
+```js
+let temporizador = null
+
+watch(busqueda, () => {
+  // clearTimeout cancela el aviso anterior: solo sobrevive el ultimo.
+  clearTimeout(temporizador)
+  temporizador = setTimeout(cargarDatos, 400)
+})
+```
+
+Eso es un *debounce*. Con el filtro en el cliente no hace falta: no hay red de por medio.
 
 ## 6. Rango de fechas
 
-Las fechas se guardan como texto `AAAA-MM-DD`, y comparar ese texto con `>=` y `<=` da el orden correcto. Solo hay que añadir dos condiciones a `citasFiltradas`:
+Dos campos `type="date"` y dos comparaciones de texto.
 
 ```js
-const desde = ref("");
-const hasta = ref("");
+const desde = ref("")
+const hasta = ref("")
 
 const citasFiltradas = computed(() =>
   citas.value.filter(
-    (c) =>
-      (!filtroEstado.value || c.estado === filtroEstado.value) &&
-      (!filtroDoctor.value || c.doctorId === filtroDoctor.value) &&
-      (!desde.value || c.fecha >= desde.value) &&
-      (!hasta.value || c.fecha <= hasta.value)
+    (item) =>
+      (!desde.value || item.fecha >= desde.value) &&
+      (!hasta.value || item.fecha <= hasta.value)
   )
-);
+)
 ```
 
-```vue
-<input v-model="desde" type="date" aria-label="Desde">
-<input v-model="hasta" type="date" aria-label="Hasta">
-```
+No hace falta `new Date()` en ningún momento: los dos lados son textos `aaaa-mm-dd` y se
+comparan directamente. Si alguna vez lo conviertes, recuerda que `new Date("2026-11-18")` se
+interpreta en UTC y puede darte el día anterior.
 
-Si `hasta` es anterior a `desde`, no sale nada: es el comportamiento esperado. Un aviso opcional: `const rangoMal = computed(() => desde.value && hasta.value && hasta.value < desde.value)`.
+### Hoy, futuras y pasadas
+
+```js
+// toLocaleDateString("sv-SE") da aaaa-mm-dd en hora LOCAL. Es el atajo corto.
+const hoy = new Date().toLocaleDateString("sv-SE")
+
+const citasFiltradas = computed(() => {
+  if (periodo.value === "hoy") {
+    return citas.value.filter((item) => item.fecha === hoy)
+  }
+  if (periodo.value === "futuras") {
+    return citas.value.filter((item) => item.fecha > hoy)
+  }
+  if (periodo.value === "pasadas") {
+    return citas.value.filter((item) => item.fecha < hoy)
+  }
+  return citas.value
+})
+```
 
 ## 7. Filtrar por especialidad a través del doctor
 
-La cita no guarda la especialidad: guarda el `doctorId`. Hay que ir del doctor a su especialidad. Con el store de doctores ya cargado:
+La cita **no guarda** la especialidad: guarda `doctorId`. Así que hay que pasar por la lista
+de doctores, que ya está cargada en `Citas.vue`.
 
 ```js
-const filtroEsp = ref("");
+const filtroEspecialidad = ref("")
 
-// en citasFiltradas, otra condición:
-(!filtroEsp.value || doctorStore.especialidadePorId(c.doctorId) === filtroEsp.value)
+// Las especialidades que realmente tienen doctores, sin repetir y ordenadas.
+const especialidades = computed(() =>
+  [...new Set(doctores.value.map((d) => d.espedoc))].filter(Boolean).sort()
+)
+
+// Los ids de los doctores de la especialidad elegida.
+// Se calcula aparte para no recorrer la lista de doctores en cada fila de la tabla.
+const idsDeLaEspecialidad = computed(() =>
+  doctores.value
+    .filter((d) => d.espedoc === filtroEspecialidad.value)
+    .map((d) => String(d._id))
+)
+
+const citasFiltradas = computed(() =>
+  filtroEspecialidad.value
+    ? citas.value.filter((item) => idsDeLaEspecialidad.value.includes(String(item.doctorId)))
+    : citas.value
+)
 ```
 
-`especialidadePorId` ya existe en `doctorStore` y devuelve el `espedoc` del doctor (o «—» si no está). El desplegable usa la lista de `especialidadStore` (`nomeesp`), como en `XestionDoctores.vue`; hay que cargarla en la carga inicial de la vista.
+Eso es **un filtro a través de una relación**, y es de lo que más valoran: demuestra que
+entiendes que los datos están repartidos en dos colecciones.
+
+El `String(...)` en los dos lados no es decorativo: el `_id` de MongoDB llega como texto en
+unos sitios y como objeto en otros, y `===` entre los dos daría `false` siempre.
 
 ## 8. Ordenar y paginar
 
-Dos funciones puras en `src/utils/listas.js`. Las dos devuelven una lista nueva, no modifican la original:
+### Ordenar pulsando la cabecera
 
 ```js
-export function ordenarPor(lista, clave, ascendente = true) {
-  const sentido = ascendente ? 1 : -1;
-  return [...lista].sort(
-    (a, b) => String(a[clave]).localeCompare(String(b[clave]), "es") * sentido
-  );
+const campoOrden = ref("fecha")
+const ascendente = ref(true)
+
+function ordenarPor(campo) {
+  if (campoOrden.value === campo) {
+    // Mismo campo: se invierte el sentido.
+    ascendente.value = !ascendente.value
+  } else {
+    campoOrden.value = campo
+    ascendente.value = true
+  }
 }
 
-export function paxinar(lista, pagina, tamano) {
-  const inicio = (pagina - 1) * tamano;
-  return lista.slice(inicio, inicio + tamano);
-}
+const citasOrdenadas = computed(() => {
+  // [...lista] hace una COPIA: sort() ordena el array en el sitio y
+  // modificar la lista original dentro de un computed es un error que da
+  // bucles de repintado.
+  return [...citasFiltradas.value].sort((a, b) => {
+    const x = a[campoOrden.value] ?? ""
+    const y = b[campoOrden.value] ?? ""
+    // localeCompare ordena textos respetando tildes y la ñ. Devuelve -1, 0 o 1.
+    const resultado = String(x).localeCompare(String(y), "es", { numeric: true })
+    return ascendente.value ? resultado : -resultado
+  })
+})
 ```
-
-`[...lista]` copia el array antes de ordenarlo, porque `sort` modifica el que recibe y no debes alterar el original del store. `localeCompare(..., "es")` compara con las reglas del español (la «ñ» y las tildes en su sitio).
-
-En la vista se encadena: filtrar, ordenar, paginar. Cada paso lee el anterior:
-
-```js
-import { ordenarPor, paxinar } from "../utils/listas.js";
-
-const claveOrden = ref("fecha");
-const ascendente = ref(true);
-const pagina = ref(1);
-const TAMANO = 5;
-
-const citasOrdenadas = computed(() => ordenarPor(citasVisibles.value, claveOrden.value, ascendente.value));
-const citasPagina = computed(() => paxinar(citasOrdenadas.value, pagina.value, TAMANO));
-const totalPaginas = computed(() => Math.max(1, Math.ceil(citasVisibles.value.length / TAMANO)));
-```
-
-Controles:
 
 ```vue
-<select v-model="claveOrden" @change="pagina = 1">
-  <option value="fecha">Data</option>
-  <option value="hora">Hora</option>
-  <option value="estado">Estado</option>
-</select>
-<AppButton @click="ascendente = !ascendente">{{ ascendente ? "↑" : "↓" }}</AppButton>
-
-<DataTable :columnas="columnas" :filas="citasPagina" :cargando="cargando" :vacio="textoVacio" />
-
-<AppButton :disabled="pagina === 1" @click="pagina--">Anterior</AppButton>
-<span>{{ pagina }} / {{ totalPaginas }}</span>
-<AppButton :disabled="pagina === totalPaginas" @click="pagina++">Seguinte</AppButton>
+            <th @click="ordenarPor('fecha')" style="cursor: pointer">
+              Fecha {{ campoOrden === 'fecha' ? (ascendente ? '▲' : '▼') : '' }}
+            </th>
 ```
 
-**Importante**: al cambiar cualquier filtro, vuelve a la página 1. Si estás en la 4 y filtras a 3 resultados, la página 4 no existe y la tabla sale vacía. Lo más limpio es un `watch`:
+El `[...lista]` antes de `sort` es el detalle que más se olvida y el que más problemas raros
+da.
+
+### Paginar
 
 ```js
-watch([filtroEstado, filtroDoctor, desde, hasta, busca], () => { pagina.value = 1; });
+const pagina = ref(1)
+const porPagina = 5
+
+// Math.ceil redondea hacia arriba: 11 elementos de 5 en 5 son 3 paginas.
+// El || 1 evita que salga "pagina 1 de 0" con la lista vacia.
+const totalPaginas = computed(() =>
+  Math.ceil(citasOrdenadas.value.length / porPagina) || 1
+)
+
+const citasPagina = computed(() => {
+  const inicio = (pagina.value - 1) * porPagina
+  // slice(desde, hasta) corta un trozo sin tocar el original.
+  return citasOrdenadas.value.slice(inicio, inicio + porPagina)
+})
+
+// Al cambiar un filtro hay que volver a la pagina 1: si estabas en la 3 y
+// el filtro deja dos paginas, la tabla saldria vacia.
+watch([filtroEstado, busqueda], () => {
+  pagina.value = 1
+})
 ```
 
-`watch` ejecuta código cuando cambia lo que le pasas; aquí, la lista de filtros entre corchetes. → `03_lecciones/01_reactividad.md §5`
+Ese `watch` es, otra vez, lo que se olvida.
 
-Receta corta: [ordenar y paginar](../funcionalidades/listas/ordenar-y-paginar.md).
+### La cadena completa
+
+```
+citas  →  citasFiltradas  →  citasOrdenadas  →  citasPagina  →  la tabla
+```
+
+Cada `computed` lee el anterior. Así cada uno hace **una** cosa y se pueden quitar o añadir
+eslabones sin tocar los demás. Y el `v-for` de la tabla lee **el último**.
 
 ## 9. Limpiar filtros y contar resultados
 
-Un botón que lo deja todo en blanco, y un texto que dice cuántas citas se ven de cuántas hay:
-
 ```js
-function limparFiltros() {
-  filtroEstado.value = "";
-  filtroDoctor.value = "";
-  filtroEsp.value = "";
-  desde.value = "";
-  hasta.value = "";
-  busca.value = "";
+function limpiarFiltros() {
+  filtroEstado.value = ""
+  busqueda.value = ""
+  desde.value = ""
+  hasta.value = ""
+  pagina.value = 1
 }
+
+// ¿Hay algún filtro puesto? Sirve para enseñar el botón de limpiar solo cuando hace falta.
+const hayFiltros = computed(() =>
+  Boolean(filtroEstado.value || busqueda.value || desde.value || hasta.value)
+)
 ```
 
 ```vue
-<AppButton @click="limparFiltros">Limpar filtros</AppButton>
-<p>Mostrando {{ citasVisibles.length }} de {{ citas.length }} citas</p>
+        <p>{{ citasFiltradas.length }} de {{ citas.length }} citas</p>
+        <button v-if="hayFiltros" type="button" @click="limpiarFiltros">
+          Limpiar filtros
+        </button>
 ```
+
+Y el texto de la tabla vacía, que debería distinguir los dos casos:
+
+```js
+const textoVacio = computed(() =>
+  citas.value.length === 0
+    ? "No hay citas cargadas."
+    : "Ninguna cita coincide con el filtro."
+)
+```
+
+Es un detalle pequeño que se nota mucho: «no hay nada» y «no hay nada **con este filtro**»
+son problemas distintos para quien usa la aplicación.
 
 ## 10. Hacerlo en el servidor
 
-Cuando el enunciado pide parámetros en la API. Se tocan cuatro ficheros, de abajo arriba.
+Cuatro capas, de abajo arriba.
 
-**Ruta** (`backend/rutas/citas.rutas.js`): el objeto `filtro` de `router.get('/')` ya existe; añade líneas:
-
-```js
-if (req.query.estado) filtro.estado = req.query.estado
-if (req.query.fecha) filtro.fecha = req.query.fecha
-if (req.query.desde || req.query.hasta) {
-    filtro.fecha = {}
-    if (req.query.desde) filtro.fecha.$gte = req.query.desde
-    if (req.query.hasta) filtro.fecha.$lte = req.query.hasta
-}
-```
-
-Reinicia el backend (no recarga solo) y prueba antes de tocar la web:
-
-```bash
-curl "localhost:3000/api/citas?estado=pendente"
-curl "localhost:3000/api/citas?desde=2026-11-14&hasta=2026-11-20"
-```
-
-**API** (`src/api/citas.js`): amplía los parámetros que acepta `obtenerCitas` y pásalos a `params`.
+**1. Express.** En `backend/rutas/citas.rutas.js`, dentro del `GET /`, el objeto `filtros` ya
+existe: se le añaden claves.
 
 ```js
-export async function obtenerCitas({ paciente = "", doctor = "", estado = "", fecha = "" } = {}) {
-  const params = {};
-  if (paciente) params.paciente = paciente;
-  if (doctor) params.doctor = doctor;
-  if (estado) params.estado = estado;
-  if (fecha) params.fecha = fecha;
-  return (await axios.get(URL, { params })).data;
-}
+        if (req.query.estado) {
+            filtros.estado = req.query.estado
+        }
+
+        // Rango de fechas. $gte = mayor o igual, $lte = menor o igual.
+        // Se construye el objeto poco a poco para admitir solo "desde", solo "hasta" o los dos.
+        if (req.query.desde || req.query.hasta) {
+            filtros.fecha = {}
+            if (req.query.desde) {
+                filtros.fecha.$gte = req.query.desde
+            }
+            if (req.query.hasta) {
+                filtros.fecha.$lte = req.query.hasta
+            }
+        }
 ```
 
-**Store** (`citaStore.js`): dos `ref` nuevos y se pasan al cargar.
+**Reinicia el backend.** No recarga solo.
+
+**2. La API.** Nada que hacer: `getCitas(filtros)` ya hace
+`axios.get(API_URL, { params: filtros })`, y axios convierte el objeto en `?clave=valor`.
+
+**3. El componente.** Pasar el filtro en la llamada:
 
 ```js
-const estado = ref("");
-const fecha = ref("");
-async function cargarCitas() {
-  citas.value = await obtenerCitas({
-    paciente: idPaciente.value, doctor: idDoctor.value, estado: estado.value, fecha: fecha.value,
-  });
-}
-// y en el return: estado, fecha
+    const listaCitas = await getCitas({
+      pacienteDNI: dniPaciente,
+      doctorId: idDoctor,
+      estado: filtroEstado.value || undefined,
+    })
 ```
 
-**Vista**: los controles escriben en el store y llaman a `filtrarCitas`, que ya existe y recarga desde el servidor:
+El `|| undefined` importa: axios **omite** las claves con `undefined`, pero sí manda
+`?estado=` si el valor es una cadena vacía, y entonces el backend no filtraría nada… o sí,
+según cómo esté escrito el `if`. Con `undefined` no hay duda.
 
-```vue
-<select v-model="estado" @change="filtrarCitas"> ... </select>
-<input v-model="fecha" type="date" @change="filtrarCitas">
+**4. Recargar al cambiar:** `@change="cargarDatos"` en el `<select>`.
+
+### Búsqueda en el servidor
+
+```js
+        if (req.query.q) {
+            // Se escapan los caracteres especiales para que una busqueda con "." o "("
+            // no se interprete como expresion regular y reviente.
+            const texto = String(req.query.q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+            // "i" = sin distinguir mayusculas. $or = vale si cumple cualquiera.
+            const patron = new RegExp(texto, "i")
+            filtros.$or = [{ motivo: patron }, { pacienteDNI: patron }]
+        }
 ```
 
-Con `const { estado, fecha } = storeToRefs(citaStore)` para no perder la reactividad.
+Lo de escapar los caracteres es lo que diferencia una búsqueda profesional de una que se
+rompe cuando alguien escribe un paréntesis.
 
-Más variantes del servidor (paginación, ordenar, búsqueda `?q=`): están en [las recetas de backend](../funcionalidades/backend/paginacion.md), todas probadas con `curl`.
+### Paginación con el total
+
+```js
+        const limite = Number(req.query.limit) || 10
+        const pagina = Number(req.query.page) || 1
+
+        // countDocuments cuenta TODOS los que cumplen el filtro, no solo esta pagina.
+        const total = await Cita.countDocuments(filtros)
+
+        const citas = await Cita.find(filtros)
+            .sort({ fecha: 1, hora: 1 })
+            // skip salta los de las paginas anteriores, limit coge los de esta.
+            .skip((pagina - 1) * limite)
+            .limit(limite)
+            .lean()
+
+        // El total viaja en una cabecera, para no cambiar la forma de la respuesta.
+        res.set("X-Total-Count", total)
+        res.json(citas)
+```
+
+Y en `server.js`, `app.use(cors({ exposedHeaders: ["X-Total-Count"] }))`: **sin eso el
+navegador no deja leer la cabecera** aunque el servidor la mande. Es el fallo clásico de esta
+receta y cuesta una hora encontrarlo si no lo sabes.
 
 ## 11. Si te piden esto, mira aquí
 
-| El enunciado dice | Apartado |
-|---|---|
-| «desplegable para filtrar citas por doctor» | [4](#4-filtrar-por-estado-y-por-doctor) |
-| «el PDF solo con lo filtrado» | [4](#4-filtrar-por-estado-y-por-doctor) |
-| «un campo que filtra mientras se escribe» | [5](#5-buscador-de-texto) |
-| «que no distinga mayúsculas» o «que encuentre con tilde» | [5](#5-buscador-de-texto) |
-| «entre dos fechas» | [6](#6-rango-de-fechas) |
-| «por especialidad» en citas | [7](#7-filtrar-por-especialidad-a-través-del-doctor) |
-| «ordenar», «paginación», «de cinco en cinco» | [8](#8-ordenar-y-paginar) |
-| «botón limpiar filtros», «mostrando X de Y» | [9](#9-limpiar-filtros-y-contar-resultados) |
-| «`GET /api/citas?estado=` devuelve solo...» | [10](#10-hacerlo-en-el-servidor) |
-| «sin resultados, un mensaje» | [5](#5-buscador-de-texto), el `:vacio` |
+| El enunciado dice | Dónde | Apartado |
+|---|---|---|
+| «filtra las citas por estado» | Cliente | [4](#4-filtrar-por-estado) |
+| «un buscador» | Cliente | [5](#5-buscador-de-texto) |
+| «entre dos fechas» | Cliente | [6](#6-rango-de-fechas) |
+| «por especialidad» | Cliente | [7](#7-filtrar-por-especialidad-a-través-del-doctor) |
+| «ordenar al pulsar la cabecera» | Cliente | [8](#8-ordenar-y-paginar) |
+| «de cinco en cinco» | Cliente | [8](#8-ordenar-y-paginar) |
+| «cuántos resultados hay» | Cliente | [9](#9-limpiar-filtros-y-contar-resultados) |
+| «el backend admite `?estado=`» | Servidor | [10](#10-hacerlo-en-el-servidor) |
+| «`curl` devuelve solo las de…» | Servidor | [10](#10-hacerlo-en-el-servidor) |
+| «con muchos registros» | Servidor | [10](#10-hacerlo-en-el-servidor) |
 
 ## 12. Fallos que quitan puntos
 
-- Pasar `citas` a la tabla en vez de la lista filtrada: el desplegable cambia y la tabla no.
-- Olvidar `.value` en el script (`filtroEstado.value`). En el template no hace falta.
-- Dejar el PDF con `citas.value`: exporta todo aunque la tabla esté filtrada.
-- Comparar con el valor equivocado: un `<select>` guarda el `:value` (el id del doctor, el `valor` del estado), no el texto de la opción.
-- Filtrar con `==` sobre un texto con tildes o mayúsculas: usa `normalizar`.
-- Modificar el array original con `sort` sin copiarlo antes: el orden cambia también en el store.
-- Olvidar volver a la página 1 al cambiar un filtro.
-- En el servidor, olvidar reiniciar el backend, o poner la ruta nueva después de `/:id`.
-- Un filtro que depende de una lista sin cargar (doctores, especialidades): si no están en la carga inicial, el desplegable sale vacío.
+1. **No cambiar el `v-for`.** El filtro funciona, la tabla no. Sin error en consola.
+2. **Olvidar `.value`** dentro del script. En el template no se pone; en el script, siempre.
+3. **Usar una variable normal en vez de `computed`.** Se calcula una vez y no se vuelve a
+   recalcular nunca.
+4. **`sort()` sin copiar.** Ordena el array original y puede dar bucles de repintado.
+5. **Comparar `_id` sin `String(...)`.** Da `false` siempre y el filtro no encuentra nada.
+6. **No volver a la página 1** al cambiar un filtro: tabla vacía sin motivo aparente.
+7. **No reiniciar el backend** después de tocarlo.
+8. **No exponer `X-Total-Count`** en CORS: el total llega siempre `null`.
+9. **Olvidar que `XestionPacientes.vue` no importa `computed`.**
+10. **Mandar `?estado=` vacío** en vez de omitir la clave.
 
-## 13. Recetas cortas y lecciones
+## 13. Recetas cortas
 
-- Recetas: [filtro en el cliente](../funcionalidades/listas/filtro-en-cliente.md) · [buscador](../funcionalidades/listas/buscador.md) · [ordenar y paginar](../funcionalidades/listas/ordenar-y-paginar.md) · [filtro en el backend](../funcionalidades/backend/filtro-en-backend.md) · [estadísticas](../funcionalidades/listas/estadisticas.md)
-- Lecciones de `diw-study`: `03_lecciones/vue/07_computed.md` · `03_lecciones/01_reactividad.md` · `03_lecciones/03_crud_api_rest.md`
-
-[← Índice](README.md) · [Siguiente: formularios y campos →](02-formularios-y-campos.md)
+- [Filtro en el cliente](../funcionalidades/listas/filtro-en-cliente.md)
+- [Buscador mientras se escribe](../funcionalidades/listas/buscador.md)
+- [Ordenar y paginar](../funcionalidades/listas/ordenar-y-paginar.md)
+- [Ordenar por cabecera](../funcionalidades/columnas-y-filtros/ordenar-por-cabecera.md)
+- [Combinar filtros y orden](../funcionalidades/columnas-y-filtros/combinar.md)
+- [Contadores y el que más](../funcionalidades/columnas-y-filtros/contador-de-resultados.md)
+- [Totales y estadísticas](../funcionalidades/listas/estadisticas.md)
+- [Filtro en el backend](../funcionalidades/backend/filtro-en-backend.md)
+- [Búsqueda en el servidor](../funcionalidades/backend/busqueda.md)
+- [Paginación](../funcionalidades/backend/paginacion.md)
+- [Ordenar en el servidor](../funcionalidades/backend/orden.md)

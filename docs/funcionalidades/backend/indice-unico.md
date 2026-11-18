@@ -45,10 +45,10 @@ CitaSchema.index(
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| Schema de Mongoose | La forma de los documentos y sus validaciones | `03_lecciones/03_crud_api_rest.md §4` |
-| REST y códigos de estado | Qué significan 200, 201, 204, 400, 404 y 409 | `03_lecciones/03_crud_api_rest.md §2` |
+| Concepto | En una línea |
+|---|---|
+| Schema de Mongoose | La forma de los documentos y sus validaciones |
+| REST y códigos de estado | Qué significan 200, 201, 204, 400, 404 y 409 |
 
 ## Guías relacionadas
 

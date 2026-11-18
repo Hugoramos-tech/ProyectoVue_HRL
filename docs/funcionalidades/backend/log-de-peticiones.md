@@ -51,6 +51,6 @@ POST /api/citas 409 6ms
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| Middleware | Funciones que se ejecutan antes de las rutas | `03_lecciones/03_crud_api_rest.md §3` |
+| Concepto | En una línea |
+|---|---|
+| Middleware | Funciones que se ejecutan antes de las rutas |

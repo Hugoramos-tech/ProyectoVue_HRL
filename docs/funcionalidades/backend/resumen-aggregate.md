@@ -6,7 +6,7 @@
 
 ## La idea
 
-`aggregate` recibe una lista de **etapas** que se aplican en orden. `$group` junta los documentos por el valor de `_id` y `$sum: 1` cuenta uno por cada documento. No está en las lecciones de `diw-study`: se explica aquí.
+`aggregate` recibe una lista de **etapas** que se aplican en orden. `$group` junta los documentos por el valor de `_id` y `$sum: 1` cuenta uno por cada documento. Es la etapa más útil de `aggregate` y la que suele bastar para un resumen.
 
 ## Qué vas a tocar
 
@@ -57,10 +57,10 @@ En `porDoctor` sale el id; el nombre se traduce en el front con `doctorStore.nom
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
+| Concepto | En una línea |
+|---|---|
 | `aggregate` | Calcular totales y agrupaciones en MongoDB | No está en las lecciones; se explica en esta receta |
-| Consultas de Mongoose | `find`, `sort`, `skip`, `limit`, `countDocuments`... | `03_lecciones/03_crud_api_rest.md §4` |
+| Consultas de Mongoose | `find`, `sort`, `skip`, `limit`, `countDocuments`... |
 
 ## Guías relacionadas
 

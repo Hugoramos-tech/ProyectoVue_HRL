@@ -81,11 +81,11 @@ La respuesta incluye `X-Total-Count: 15` (o el total que tengas) y solo 2 citas 
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| Consultas de Mongoose | `find`, `sort`, `skip`, `limit`, `countDocuments`... | `03_lecciones/03_crud_api_rest.md §4` |
-| Router de Express | Rutas agrupadas, y cómo leer `req.query` y `req.params` | `03_lecciones/03_crud_api_rest.md §3` |
-| axios | Llamar a la API desde Vue | `03_lecciones/03_crud_api_rest.md §5` |
+| Concepto | En una línea |
+|---|---|
+| Consultas de Mongoose | `find`, `sort`, `skip`, `limit`, `countDocuments`... |
+| Router de Express | Rutas agrupadas, y cómo leer `req.query` y `req.params` |
+| axios | Llamar a la API desde Vue |
 
 ## Guías relacionadas
 

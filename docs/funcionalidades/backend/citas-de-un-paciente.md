@@ -46,10 +46,10 @@ curl -i localhost:3000/api/pacientes/000000000000000000000000/citas   # 404
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| Router de Express | Rutas agrupadas, y cómo leer `req.query` y `req.params` | `03_lecciones/03_crud_api_rest.md §3` |
-| REST y códigos de estado | Qué significan 200, 201, 204, 400, 404 y 409 | `03_lecciones/03_crud_api_rest.md §2` |
+| Concepto | En una línea |
+|---|---|
+| Router de Express | Rutas agrupadas, y cómo leer `req.query` y `req.params` |
+| REST y códigos de estado | Qué significan 200, 201, 204, 400, 404 y 409 |
 
 ## Guías relacionadas
 

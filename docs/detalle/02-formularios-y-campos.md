@@ -10,7 +10,7 @@ Todo lo que pueden pedirte sobre **un formulario**: un campo nuevo, un desplegab
 2. [Lo que necesitas saber](#2-lo-que-necesitas-saber)
 3. [Campo de texto nuevo](#3-campo-de-texto-nuevo)
 4. [Desplegable con valores fijos](#4-desplegable-con-valores-fijos)
-5. [Número y sí o no](#5-número-y-sí-o-no)
+5. [Número, sí o no, y fecha](#5-número-sí-o-no-y-fecha)
 6. [Provincia y municipio en cascada](#6-provincia-y-municipio-en-cascada)
 7. [Un valor calculado: la edad](#7-un-valor-calculado-la-edad)
 8. [Dar de baja sin borrar](#8-dar-de-baja-sin-borrar)
@@ -18,342 +18,552 @@ Todo lo que pueden pedirte sobre **un formulario**: un campo nuevo, un desplegab
 10. [Validar en el servidor](#10-validar-en-el-servidor)
 11. [Si te piden esto, mira aquí](#11-si-te-piden-esto-mira-aquí)
 12. [Fallos que quitan puntos](#12-fallos-que-quitan-puntos)
-13. [Recetas cortas y lecciones](#13-recetas-cortas-y-lecciones)
+13. [Recetas cortas](#13-recetas-cortas)
 
 ## 1. Cómo está montado un formulario
 
-Los tres formularios (pacientes, doctores, citas) siguen el mismo patrón. Si lo entiendes en uno, los entiendes todos.
+Los tres formularios (pacientes, doctores, citas) siguen el mismo patrón. Si entiendes uno,
+entiendes los tres. **No hay componentes de formulario reutilizables**: cada `<label>` y cada
+`<input>` están escritos a mano, con las clases de `src/style.css`.
 
-| Pieza | Dónde | Qué hace |
-|---|---|---|
-| El molde | `PACIENTE_BALEIRO`, `DOUTOR_BALEIRO`, `CITA_BALEIRA` en la vista | Un objeto con **todos** los campos y su valor vacío |
-| `useFormulario(molde)` | `src/composables/useFormulario.js` | Devuelve `datos` (lo que se enlaza con `v-model`), `idEditando`, `resetear()` y `cargar(fila)` |
-| `FormField` y `FormGrid` | `src/components/ui/` | La etiqueta con su campo y la rejilla; `FormGrid` emite `enviar` al hacer submit |
-| `columnas` | en la vista | Qué columnas salen en la tabla y en el PDF |
-| El modelo | `backend/modelos/` | Qué campos acepta el servidor y con qué reglas |
+| Pieza | Pacientes | Doctores | Citas |
+|---|---|---|---|
+| El objeto del formulario | `novoPaciente` (`reactive`) | `novoDoctor` (`reactive`) | `cita` (`reactive`) |
+| El molde vacío | Las claves de `novoPaciente` | `doctorVacio()` | Las claves de `cita` |
+| Vaciarlo | `limpiaFormpac()` | `limparFormulario()` | `limpiarFormulario()` |
+| Modo edición | `editando` (`ref`) | `editando` (`ref`) | `editando` (`ref`) |
+| Guardar | `guardarPaciente()` | `guardarDoctor()` | `guardarCita()` |
+| El schema | `backend/modelos/Paciente.js` | `Doctor.js` | `Cita.js` |
 
-El camino de un campo nuevo, de la pantalla a la base de datos y vuelta:
+Dos formas distintas de vaciar el formulario, y las dos son automáticas:
 
-1. Está en el **molde**, para que exista en `datos` y se pueda editar.
-2. Tiene su **input** con `v-model="datos.campo"`.
-3. Está en el **modelo** de Mongoose, si no el servidor lo ignora al guardar.
-4. Está en **`columnas`**, si debe verse en la tabla y en el PDF.
+```js
+// Pacientes: recorre las claves y las pone a "" o a false segun su tipo.
+Object.keys(novoPaciente).forEach((key) => { ... })
 
-Si falta uno de los cuatro, el campo falla de una forma distinta cada vez (ver [fallos](#12-fallos-que-quitan-puntos)).
+// Doctores: sustituye el contenido por el del molde.
+Object.assign(novoDoctor, doctorVacio())
+```
+
+**Las dos tienen la misma consecuencia práctica:** en cuanto añadas un campo al objeto del
+formulario, se vacía solo. No hay que tocar la función de limpiar.
+
+### El camino de un campo nuevo
+
+1. Está en el **schema** de Mongoose, o el servidor lo ignora al guardar.
+2. Está en el **objeto del formulario**, o al editar sale vacío.
+3. Tiene su **`<input>`** con `v-model`.
+4. Tiene su **`<th>` y su `<td>`**, si debe verse en la tabla.
+5. Está en **`cabeceras` y `filas`** de la función del PDF, si debe salir ahí.
+
+Si falta uno de los cinco, falla de una forma distinta cada vez. La tabla está en el
+apartado [12](#12-fallos-que-quitan-puntos).
 
 ## 2. Lo que necesitas saber
 
-**`reactive` y `datos`**: `useFormulario` crea `datos` con `reactive`, un objeto vigilado entero. Cada campo del objeto es reactivo, y se usa **sin** `.value`: `datos.nomepac`. → `03_lecciones/01_reactividad.md §3`
+**`reactive`**: un objeto vigilado **entero**. Se usa **sin** `.value`: `novoPaciente.nomepac`.
+Es lo que se usa para los formularios, porque son objetos con muchos campos.
 
-**`v-model` según el campo**: en un `<input type="text">`, atado al texto. En un `<select>`, al `:value` de la opción elegida. En un `<input type="checkbox">`, a `true` o `false`. En un `<input type="number">`, escribe un **texto** salvo que uses `v-model.number`. → `03_lecciones/vue/02_v_model.md`
+**`ref`**: un valor suelto vigilado. Se lee y escribe con `.value` en el script. Es lo que se
+usa para `editando`, `cargando`, las listas y los filtros.
 
-**`cargar(fila)`**: para editar, copia a `datos` los campos de una fila, pero **solo los que están en el molde**. Si un campo nuevo no está en el molde, al editar sale vacío.
+**La regla:** objeto de formulario → `reactive`. Todo lo demás → `ref`.
 
-**`watch`**: ejecuta código cuando cambia un dato. Se usa en la cascada para vaciar el municipio. → `03_lecciones/01_reactividad.md §5`
+**No sustituyas un `reactive`.** `novoPaciente = {...}` rompe la reactividad: la pantalla deja
+de enterarse de los cambios. Hay que escribir **dentro**: `Object.assign(novoPaciente, otro)`,
+o campo a campo.
 
-**Schema de Mongoose**: la forma de un documento: qué campos tiene, de qué tipo y con qué reglas (`required`, `enum`, `match`, `default`...). Un campo que no está en el schema no se guarda, aunque lo envíes. → `03_lecciones/03_crud_api_rest.md §4`
+**`v-model` según el campo**:
+
+| Campo | Qué guarda |
+|---|---|
+| `type="text"` | El texto |
+| `type="text"` con `v-model.trim` | El texto sin espacios en los extremos |
+| `<select>` | El `:value` de la opción elegida, no el texto que se ve |
+| `type="checkbox"` | `true` o `false` |
+| `type="radio"` | El `value` del que esté marcado |
+| `type="number"` | Un **texto**, salvo con `v-model.number` |
+| `type="date"` | Un texto `aaaa-mm-dd` |
+| `type="time"` | Un texto `hh:mm` |
+
+**`watch`**: ejecuta algo cuando cambia un dato. Para vigilar una propiedad de un `reactive`
+hay que pasarle una función: `watch(() => novoPaciente.propac, ...)`. Con
+`watch(novoPaciente.propac, ...)` se vigilaría el texto que había en ese momento, y nunca
+volvería a saltar.
+
+**Schema de Mongoose**: la forma del documento. **Un campo que no está en el schema no se
+guarda**, aunque lo envíes y aunque la petición responda `201`.
 
 ## 3. Campo de texto nuevo
 
-Ejemplo: `alerxiaspac`, opcional, en pacientes.
+Ejemplo: `alergiaspac`, opcional, en pacientes.
 
-Modelo (`backend/modelos/Paciente.js`), dentro del schema:
+**El schema** (`backend/modelos/Paciente.js`):
 
 ```js
-alerxiaspac: { type: String, trim: true, default: '' },
+        // default: "" para que los pacientes que ya existian no den error al editarlos.
+        alergiaspac: { type: String, trim: true, default: "" },
 ```
 
-Vista (`XestionPacientes.vue`): el molde, el campo y la columna.
+**Reinicia el backend.**
+
+**El objeto del formulario** (`XestionPacientes.vue`, dentro de `novoPaciente`):
 
 ```js
-const PACIENTE_BALEIRO = {
-  // ...los que ya había
-  alerxiaspac: "",
-};
+  alergiaspac: "",
+```
+
+**El `<input>`:**
+
+```vue
+        <div class="campo">
+          <label for="pac-alergias">Alergias:</label>
+          <input id="pac-alergias" v-model="novoPaciente.alergiaspac" type="text">
+        </div>
+```
+
+**La columna** (dos cambios, misma posición):
+
+```vue
+            <th>Alergias</th>
 ```
 
 ```vue
-<FormField label="Alerxias:" class="col-span-full">
-  <input v-model="datos.alerxiaspac" type="text">
-</FormField>
+            <td>{{ u.alergiaspac || "—" }}</td>
 ```
 
-```js
-{ clave: "alerxiaspac", titulo: "Alerxias" },
-```
+**El PDF**, dentro de `exportarPacientes()`: una entrada más en `cabeceras` y otra en cada
+fila de `filas`. **Tienen que tener el mismo número de elementos** o la tabla sale desplazada.
 
-`class="col-span-full"` hace que el campo ocupe toda la fila de la rejilla. Para que el campo sea obligatorio: `required: true` en el modelo y el atributo `required` en el `<input>`.
-
-**Qué deberías ver**: reinicia el backend, crea un paciente con el campo, recarga y edítalo: el valor aparece en el formulario, en la tabla y en el PDF.
+Receta completa: [campo nuevo](../funcionalidades/datos/campo-nuevo.md).
 
 ## 4. Desplegable con valores fijos
 
-Ejemplo: grupo sanguíneo, con una lista cerrada.
-
-Modelo, con `enum`: cualquier otro valor da error `400`.
-
 ```js
-gruposanpac: { type: String, enum: ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', '0+', '0-'], default: '' },
-```
-
-Vista: la lista fuera del `<template>` y un `v-for`.
-
-```js
-const GRUPOS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "0+", "0-"];
+        // enum limita los valores admitidos; cualquier otro da un 400.
+        // El "" tiene que estar, o la opcion "Sin especificar" daria error.
+        grupopac: { type: String, enum: ["A", "B", "AB", "0", ""], default: "" },
 ```
 
 ```vue
-<FormField label="Grupo sanguíneo:">
-  <select v-model="datos.gruposanpac">
-    <option value="">Sen indicar</option>
-    <option v-for="g in GRUPOS" :key="g" :value="g">{{ g }}</option>
-  </select>
-</FormField>
+        <div class="campo">
+          <label for="pac-grupo">Grupo sanguíneo:</label>
+          <select id="pac-grupo" v-model="novoPaciente.grupopac">
+            <option value="">Sin especificar</option>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="AB">AB</option>
+            <option value="0">0</option>
+          </select>
+        </div>
 ```
 
-La opción vacía permite no elegir. Si el campo fuera obligatorio, esa opción llevaría `disabled`, como la de «Selecciona paciente» en el formulario de citas.
+### Desplegable desde el servidor
 
-## 5. Número y sí o no
-
-**Número** (peso en kg):
+Es lo que ya hace tu proyecto con las especialidades y las provincias:
 
 ```js
-pesopac: { type: Number, min: 1, max: 400 },
+const especialidades = ref([])
+
+// Una llamada suelta en el script setup: se ejecuta al crear el componente.
+obtenerEspecialidades()
+  .then((lista) => (especialidades.value = lista))
+  .catch(() => (especialidades.value = []))
 ```
 
 ```vue
-<FormField label="Peso (kg):">
-  <input v-model.number="datos.pesopac" type="number" min="1" max="400">
-</FormField>
+          <select id="doc-espe" v-model="novoDoctor.espedoc" :disabled="especialidades.length === 0">
+            <option value="">Elige una especialidad</option>
+            <option v-for="e in especialidades" :key="e.id" :value="e.nm">{{ e.nm }}</option>
+          </select>
 ```
 
-`.number` convierte el texto a número. Un campo vacío da `""`, no un número: antes de enviar, si lo dejas vacío, pásalo a `undefined` o Mongoose rechazará la cadena vacía.
+El `:disabled` mientras la lista está vacía es un detalle que se agradece: evita que alguien
+abra un desplegable vacío y crea que está roto.
 
-**Sí o no** (`fumador`):
+## 5. Número, sí o no, y fecha
+
+**Número:**
 
 ```js
-fumadorpac: { type: Boolean, default: false },
+        pesopac: { type: Number, min: 0, max: 400, default: null },
 ```
 
 ```vue
-<FormField label="Fumador:">
-  <input v-model="datos.fumadorpac" type="checkbox">
-</FormField>
+          <input id="pac-peso" v-model.number="novoPaciente.pesopac" type="number" min="0" step="0.1">
 ```
 
-El molde lleva `false`, no `""`. En la tabla, un `true` se ve como `true` si no lo traduces:
+**El `.number` no es opcional.** Sin él llega el texto `"70"`, y Mongoose lo convierte… hasta
+que alguien escribe algo raro y sale un `CastError`. Además, `"70" + 5` da `"705"`.
+
+**Sí o no:**
 
 ```js
-{ clave: "fumadorpac", titulo: "Fumador", formato: (p) => (p.fumadorpac ? "Si" : "Non") },
+        privadopac: { type: Boolean, default: false },
 ```
+
+```vue
+          <input id="pac-privado" v-model="novoPaciente.privadopac" type="checkbox">
+```
+
+En la tabla: `{{ u.privadopac ? "Sí" : "No" }}`. Tu `lopdpac` funciona exactamente así.
+
+**Radio** (una opción de varias), como el `coledoc` de doctores:
+
+```vue
+            <label><input v-model="novoDoctor.coledoc" type="radio" value="SI" required> Sí</label>
+            <label><input v-model="novoDoctor.coledoc" type="radio" value="NO" required> No</label>
+```
+
+Los dos `<input>` tienen el **mismo `v-model`**: eso es lo que los hace excluyentes.
+
+**Fecha:**
+
+```js
+        // String, no Date: aaaa-mm-dd se ordena y compara bien como texto,
+        // y es exactamente lo que da y espera un <input type="date">.
+        nacipac: { type: String },
+```
+
+```vue
+          <input id="pac-naci" v-model="novoPaciente.nacipac" type="date" :max="hoyTexto">
+```
+
+Guardar las fechas como texto es una decisión de este proyecto, y tiene sentido: así no hay
+conversiones ni problemas de zona horaria en ningún punto del camino.
 
 ## 6. Provincia y municipio en cascada
 
-El profesor lo tiene así en su formulario. Se eligen en dos desplegables: el segundo muestra solo los municipios de la provincia del primero, y se guarda el **nombre** (`propac: "Pontevedra"`).
-
-![Al elegir provincia se busca su id, el computed saca sus municipios, y si el municipio no es de esa provincia se vacía](img/cascada.png)
-
-**Por qué hace falta buscar el id**: los municipios se enlazan con su provincia por el código INE (los dos primeros dígitos del id del municipio son el id de la provincia), pero el paciente guarda el nombre. `municipioStore` ya tiene `provincias`, `municipios` y `municipiosDe(idProvincia)`.
-
-En `XestionPacientes.vue`:
+Ya está hecho en tu proyecto: es el modelo a seguir para cualquier par de desplegables
+dependientes.
 
 ```js
-import { ref, computed, watch } from "vue";
-import { useMunicipioStore } from "../store/municipioStore.js";
+const provincias = ref([])
+const municipios = ref([])
 
-const municipioStore = useMunicipioStore();
-const { provincias } = storeToRefs(municipioStore);
+// Al elegir provincia se piden sus municipios y se vacia el municipio anterior.
+async function cargarMunicipios() {
+  // Vaciar PRIMERO: si no, queda un municipio de la provincia vieja.
+  // Es el paso que casi todo el mundo olvida.
+  novoPaciente.munipac = ""
+  municipios.value = []
 
-// Se cargan junto a los pacientes
-const { cargando, erro } = useCargaInicial(() =>
-  Promise.all([pacienteStore.cargarPacientes(), municipioStore.cargarMunicipios()])
-);
-
-// De la provincia elegida (por nombre) sale su id, y de él sus municipios
-const municipiosDaProvincia = computed(() => {
-  const provincia = provincias.value.find((p) => p.nm === datos.propac);
-  return municipioStore.municipiosDe(provincia?.id);
-});
-
-// Al cambiar de provincia, si el municipio elegido no es de la nueva, se vacía
-watch(
-  () => datos.propac,
-  () => {
-    if (!municipiosDaProvincia.value.some((m) => m.nm === datos.munipac)) datos.munipac = "";
+  if (!novoPaciente.propac) {
+    return
   }
-);
-```
 
-```vue
-<FormField label="Provincia:">
-  <select v-model="datos.propac" required>
-    <option value="" disabled>Selecciona provincia</option>
-    <option v-for="p in provincias" :key="p.id" :value="p.nm">{{ p.nm }}</option>
-  </select>
-</FormField>
-<FormField label="Municipio:">
-  <select v-model="datos.munipac" :disabled="!datos.propac">
-    <option value="">Selecciona municipio</option>
-    <option v-for="m in municipiosDaProvincia" :key="m.id" :value="m.nm">{{ m.nm }}</option>
-  </select>
-</FormField>
-```
+  const provincia = provincias.value.find((p) => p.nm === novoPaciente.propac)
+  if (!provincia) {
+    return
+  }
 
-**Qué deberías ver**: el municipio empieza desactivado. Al elegir Pontevedra aparecen 63 municipios; si eliges Vigo y cambias a Lugo, el municipio se vacía y salen los 68 de Lugo. Al editar un paciente, se cargan los dos.
-
-Otras cascadas se hacen igual: especialidad y doctor (el segundo `computed` filtra `doctores` por `espedoc`), o provincia y centro de salud.
-
-## 7. Un valor calculado: la edad
-
-La edad no se guarda: sale de la fecha de nacimiento. Se calcula al mostrarla, con `formato` en `columnas`. En `src/utils/fechas.js`:
-
-```js
-export function edad(nacimiento) {
-  if (!nacimiento) return "—";
-  const hoy = new Date();
-  const nace = new Date(`${nacimiento}T00:00:00`);
-  const aunNoCumplidos =
-    hoy.getMonth() < nace.getMonth() ||
-    (hoy.getMonth() === nace.getMonth() && hoy.getDate() < nace.getDate());
-  return hoy.getFullYear() - nace.getFullYear() - (aunNoCumplidos ? 1 : 0);
+  municipios.value = await obtenerMunicipios(provincia.id)
 }
 ```
 
-```js
-import { edad } from "../utils/fechas.js";
-
-{ clave: "nacipac", titulo: "Idade", formato: (p) => edad(p.nacipac) },
+```vue
+          <select id="pac-pro" v-model="novoPaciente.propac" @change="cargarMunicipios">
+            <option value="">Elige provincia</option>
+            <option v-for="p in provincias" :key="p.id" :value="p.nm">{{ p.nm }}</option>
+          </select>
 ```
 
-Restar solo los años daría un año de más a quien aún no ha cumplido este año: por eso se comprueba si ya pasó su cumpleaños. `T00:00:00` evita que la fecha se interprete como UTC y cambie de día según la zona horaria.
+```vue
+          <select id="pac-muni" v-model="novoPaciente.munipac" :disabled="municipios.length === 0">
+            <option value="">Elige municipio</option>
+            <option v-for="m in municipios" :key="m.id" :value="m.nm">{{ m.nm }}</option>
+          </select>
+```
 
-Es la misma técnica para cualquier valor calculado: la duración entre dos horas, los días que faltan para una cita, el nombre completo. `formato` recibe la fila entera.
+**Lo esencial de una cascada**, y lo que preguntan: al cambiar el primero hay que **vaciar el
+segundo**. Si no, el formulario puede enviar un municipio que no pertenece a la provincia
+elegida, y nada avisa.
+
+**Y el detalle del modo edición:** al cargar un paciente para editarlo hay que llamar a
+`cargarMunicipios()` después de copiar sus datos, o el desplegable de municipio sale vacío
+aunque el paciente tenga uno. En tu `buscarPaciente()` ese `await cargarMunicipios()` está
+puesto justo por eso.
+
+Lo mismo con `@change="cargarMunicipios"` en vez de un `watch`: funcionan igual. El `watch`
+salta también cuando el valor cambia desde el código; el `@change` solo cuando lo cambia el
+usuario. Para una cascada en edición, eso importa.
+
+## 7. Un valor calculado: la edad
+
+Un dato que **no se guarda**: se calcula al pintarlo.
+
+```js
+// "2000-05-10" -> 25. Devuelve null si no hay fecha.
+export function calcularEdad(fecha) {
+  if (!fecha) {
+    return null
+  }
+
+  const [anyo, mes, dia] = String(fecha).split("-").map(Number)
+  const hoy = new Date()
+
+  let edad = hoy.getFullYear() - anyo
+  // getMonth() cuenta desde 0 (enero es 0), de ahi el +1.
+  const mesActual = hoy.getMonth() + 1
+  // Si este anyo todavia no ha cumplido, se le resta uno.
+  if (mesActual < mes || (mesActual === mes && hoy.getDate() < dia)) {
+    edad--
+  }
+
+  return edad
+}
+```
+
+Ese ajuste del mes y el día es lo que diferencia una edad correcta de una restada a ojo. Sin
+él, alguien nacido en diciembre aparece un año mayor durante once meses.
+
+En la tabla: `<td>{{ calcularEdad(u.nacipac) ?? "—" }}</td>`.
+
+**Por qué no se guarda:** un dato calculado que se guarda queda desactualizado al día
+siguiente del cumpleaños. La regla general: **si se puede deducir de otro dato, no se guarda**.
+
+### Un campo condicional
+
+```js
+// Hace falta anadir computed al import de Vue de XestionPacientes.vue.
+const esMenor = computed(() => {
+  const edad = calcularEdad(novoPaciente.nacipac)
+  return edad !== null && edad < 18
+})
+```
+
+```vue
+        <div v-if="esMenor" class="campo">
+          <label for="pac-tutor">Tutor legal:</label>
+          <input id="pac-tutor" v-model="novoPaciente.tutorpac" type="text" required>
+        </div>
+```
+
+**`v-if` y no `v-show`**: con `v-show` el `<input required>` seguiría existiendo, oculto, y
+bloquearía el envío del formulario para los adultos. Es exactamente el tipo de pregunta de
+«¿cuál usarías y por qué?».
+
+Y en el `:disabled` del botón, una condición más:
+`|| (esMenor && !novoPaciente.tutorpac.trim())`.
+
+Receta completa: [tutor si es menor](../funcionalidades/pequenas-mejoras/tutor-si-es-menor.md).
 
 ## 8. Dar de baja sin borrar
 
-Un campo `activo` y un interruptor, en vez de eliminar. Muy habitual cuando hay citas asociadas.
-
-Modelo: por defecto activo.
+Baja lógica: el registro se queda, marcado.
 
 ```js
-activo: { type: Boolean, default: true },
+        // false = activo. Se llama "baja" y no "activo" para que el default sea el caso normal.
+        bajapac: { type: Boolean, default: false },
 ```
 
-Molde `activo: true`, y en el formulario un checkbox como el del apartado 5. En la tabla:
+En la tabla, un botón que cambia la marca en lugar de borrar:
 
 ```js
-{ clave: "activo", titulo: "Estado", formato: (d) => (d.activo === false ? "Baixa" : "Activo") },
+async function alternarBaja(paciente) {
+  const texto = paciente.bajapac
+    ? `¿Reactivar a ${paciente.nomepac}?`
+    : `¿Dar de baja a ${paciente.nomepac}? No se borra: deja de aparecer en Citas.`
+
+  const confirmacion = await alertaConfirmacion(texto, "Cambiar estado")
+  if (!confirmacion.isConfirmed) {
+    return
+  }
+
+  // Solo se manda el campo que cambia: el PUT acepta cambios parciales.
+  await modifyPaciente(paciente.dnipac, { bajapac: !paciente.bajapac })
+  await cargarPacientes()
+}
 ```
 
-Se compara con `=== false` porque los doctores ya guardados no tienen el campo: son `undefined`, y deben contar como activos.
+Y donde no deban aparecer, un filtro: `pacientes.value.filter((p) => !p.bajapac)`.
 
-Para ver solo los activos, un filtro de cliente (ver [listas, apartado 4](01-listas-filtros-y-busqueda.md#4-filtrar-por-estado-y-por-doctor)):
-
-```js
-const soloActivos = ref(true);
-const doctoresVisibles = computed(() =>
-  soloActivos.value ? doctores.value.filter((d) => d.activo !== false) : doctores.value
-);
-```
+**Cuándo tiene sentido:** cuando hay datos que dependen de ese registro. Borrar un paciente
+deja sus citas apuntando a un DNI que ya no existe. Darlo de baja no rompe nada, y se puede
+deshacer. La otra salida es el
+[borrado en cascada](../funcionalidades/backend/borrado-en-cascada.md): borrar también sus
+citas. Las dos son respuestas válidas; lo que importa es saber **por qué** eliges una.
 
 ## 9. Validar mientras se escribe
 
-Hay tres niveles, de menos a más control:
+El patrón de este proyecto: una función por campo, y un `computed` o una función que decide
+si hay error.
 
-1. **Atributos HTML** (`required`, `pattern`, `min`, `max`, `minlength`): el navegador avisa al enviar.
-2. **Un error bajo el campo**, que aparece al salir de él (`@blur`) y no mientras escribes la primera letra.
-3. **Botón desactivado** hasta que todo esté bien.
-
-El nivel 2, para un teléfono de 9 dígitos. `FormField` tiene la prop `error`, que pinta el mensaje bajo el campo:
+**Al salir del campo** (`@blur`), para normalizar:
 
 ```js
-const tocadoMovil = ref(false);
-const erroMovil = computed(() =>
-  tocadoMovil.value && !/^[0-9]{9}$/.test(datos.movilpac) ? "O teléfono debe ter 9 díxitos" : ""
-);
+function sanitizarDni() {
+  novoPaciente.dnipac = novoPaciente.dnipac.trim().toUpperCase()
+}
+```
+
+**En cada tecla** (`@input`), para impedir caracteres:
+
+```vue
+            @input="novoPaciente.movilpac = novoPaciente.movilpac.replace(/\D/g, '')"
+```
+
+**Un error con mensaje** (`computed` que devuelve texto; cadena vacía = sin error):
+
+```js
+const errorFecha = computed(() => {
+  const hoy = new Date().toLocaleDateString("sv-SE")
+  return cita.fecha && cita.fecha < hoy ? "La fecha no puede ser pasada" : ""
+})
 ```
 
 ```vue
-<FormField label="Móbil:" :error="erroMovil">
-  <input v-model="datos.movilpac" type="tel" required
-    :aria-invalid="Boolean(erroMovil)" @blur="tocadoMovil = true">
-</FormField>
+            <p v-if="errorFecha" class="erro-campo">{{ errorFecha }}</p>
 ```
 
-El nivel 3, en el botón de guardar:
+**Y el botón**, con `Boolean(...)`:
 
 ```vue
-<AppButton variante="primario" type="submit" :disabled="Boolean(erroMovil) || !datos.nomepac.trim()">
-  Gardar
-</AppButton>
+          :disabled="Boolean(errorFecha)"
 ```
 
-Fecha de nacimiento que no sea futura, y edad mínima, con el mismo esquema:
+El `Boolean(...)` convierte el texto en `true`/`false`. Sin él, `:disabled` recibe `""`, que
+HTML trata de forma inconsistente.
+
+**La regla de oro de los duplicados:** al editar hay que dejar fuera el propio registro.
 
 ```js
-const erroNacemento = computed(() => {
-  if (!datos.nacipac) return "";
-  const hoxe = new Date().toLocaleDateString("sv-SE");
-  return datos.nacipac > hoxe ? "A data non pode ser futura" : "";
-});
+  // Sin el segundo trozo, guardar un paciente sin cambiarle nada daria "DNI repetido".
+  const repetido = pacientes.value.some(
+    (p) => p.dnipac === novoPaciente.dnipac && (!editando.value || p.dnipac !== dniOriginal)
+  )
 ```
 
-`toLocaleDateString("sv-SE")` devuelve `AAAA-MM-DD` en hora local. El DNI ya tiene su propia comprobación (`validarDni`) en `XestionPacientes.vue`: es el modelo a copiar para validar con una función.
+En el servidor es lo mismo con `$ne`. Es el detalle que más distingue un control de
+duplicados bien hecho.
+
+### Lo que ya tiene tu proyecto
+
+| Función | En | Qué hace |
+|---|---|---|
+| `esDniCorrecto()` | Pacientes | Formato y letra de control calculada |
+| `dniDuplicado()` | Pacientes | Busca el DNI en la lista cargada |
+| `validarMail()` | Pacientes | Expresión regular del correo |
+| `sanitizarDni/Nome/Apellidos/Mobil/Mail` | Pacientes | Normalizan al salir del campo |
+| `capitalizarNome()` | Pacientes y doctores | «juan lópez» → «Juan López» |
+| `hayError(campo)` | Pacientes | Decide si pintar el campo en rojo |
+| `mobilInvalido`, `mailInvalido` | Doctores | `computed` de validación |
+| `formularioValido` | Citas | Habilita el botón Guardar |
+
+Antes de escribir una validación, mira si ya está: casi siempre hay una parecida que copiar.
 
 ## 10. Validar en el servidor
 
-La web evita errores, pero el servidor no se fía: la API también se puede llamar sin la web. Las reglas compartidas están en `backend/modelos/validaciones.js` (`DNI`, `TELEFONO`, `CORREO`, `HORA`, `FECHA`) y se usan en el campo:
+**Las tres capas**, y la pregunta de examen es siempre la misma: ¿se puede saltar?
+
+| Capa | Dónde | ¿Se puede saltar? |
+|---|---|---|
+| HTML | `required`, `pattern`, `min`, `max` en el `<input>` | Sí, con F12 |
+| JavaScript | `computed` y funciones en el componente | Sí, llamando a la API |
+| Servidor | `backend/modelos/` y `backend/rutas/` | **No** |
+
+**En el schema:**
 
 ```js
-movilpac: { type: String, required: true, trim: true, match: TELEFONO },
+        movilpac: {
+            type: String,
+            required: true,
+            // ^ principio, $ final, \d un digito, {8} ocho veces.
+            match: [/^[67]\d{8}$/, "El movil debe empezar por 6 o 7 y tener 9 digitos"]
+        },
 ```
-
-Una regla nueva, un código postal:
 
 ```js
-// validaciones.js
-export const CODIGO_POSTAL = [/^[0-9]{5}$/, 'O código postal debe ter 5 díxitos']
-
-// en el modelo
-cpac: { type: String, match: CODIGO_POSTAL },
+        fecha: {
+            type: String,
+            required: true,
+            // validate con una funcion: devuelve true si el valor VALE.
+            validate: {
+                validator: (valor) => valor >= new Date().toLocaleDateString("sv-SE"),
+                message: "La fecha no puede ser pasada"
+            }
+        },
 ```
 
-Cuando una regla falla, el servidor responde `400` con el mensaje, y la vista lo enseña con `alertaError(mensajeError(e))`. Que el mensaje esté en gallego y diga qué corregir.
+**En la ruta**, cuando hace falta consultar la base de datos:
 
-Más reglas de Mongoose: `enum`, `min` y `max` (números), `minlength` y `maxlength` (textos), `unique` (que no se repita; da `409`) y `validate` con una función propia. Ejemplos con horario y fines de semana: [receta de backend](../funcionalidades/backend/horario-y-fines-de-semana.md).
+```js
+        // Un duplicado no se puede comprobar con una regla del schema:
+        // hay que preguntarle a la coleccion.
+        const duplicado = await Paciente.findOne({ dnipac })
+        if (duplicado) {
+            return res.status(409).json({ mensaje: "Ya existe un paciente con ese DNI" })
+        }
+```
+
+**Los códigos, y cuándo usar cada uno:**
+
+| Código | Significa | En tu proyecto |
+|---|---|---|
+| `201` | Creado | Un `POST` que sale bien |
+| `400` | Datos mal | Falla un `required`, un `match` o un `validate` |
+| `404` | No existe | Un DNI o un id que no está |
+| `409` | Conflicto | Un DNI repetido, un solape |
+| `500` | Error del servidor | Algo se rompió |
+| `503` | Sin base de datos | `requireDatabase` cuando Mongo no responde |
+
+**La clave de la respuesta se llama `mensaje`.** Todo tu backend la usa así, y todos tus
+componentes la leen con `mensajeError(...)` / `mensaxeDoErro(...)`:
+
+```js
+function mensajeError(error, porDefecto) {
+  return error?.response?.data?.mensaje ?? porDefecto
+}
+```
+
+Si en una ruta nueva pones `{ error: "..." }` en vez de `{ mensaje: "..." }`, el texto no sale
+en la alerta y verás el mensaje genérico. Es un fallo de cinco segundos que cuesta media hora
+encontrar.
+
+Y siempre: **reinicia el backend** después de tocarlo.
 
 ## 11. Si te piden esto, mira aquí
 
 | El enunciado dice | Apartado |
 |---|---|
-| «añade un campo X a pacientes (o doctores, o citas)» | [3](#3-campo-de-texto-nuevo) |
-| «desplegable con...», «lista fija de opciones» | [4](#4-desplegable-con-valores-fijos) |
-| «campo numérico», «sí o no», «casilla» | [5](#5-número-y-sí-o-no) |
-| «provincia y municipio», «al elegir una, la otra se rellena» | [6](#6-provincia-y-municipio-en-cascada) |
-| «muestra la edad», «campo calculado» | [7](#7-un-valor-calculado-la-edad) |
-| «dar de baja», «activo o inactivo» | [8](#8-dar-de-baja-sin-borrar) |
-| «validar», «mensaje de error», «botón desactivado» | [9](#9-validar-mientras-se-escribe) |
-| «el servidor debe rechazar...» | [10](#10-validar-en-el-servidor) |
+| «añade un campo X» | [3](#3-campo-de-texto-nuevo) |
+| «un desplegable con…» | [4](#4-desplegable-con-valores-fijos) |
+| «un número», «una casilla» | [5](#5-número-sí-o-no-y-fecha) |
+| «al elegir A, que B solo muestre…» | [6](#6-provincia-y-municipio-en-cascada) |
+| «la edad», «un dato calculado» | [7](#7-un-valor-calculado-la-edad) |
+| «sin borrarlo», «dar de baja» | [8](#8-dar-de-baja-sin-borrar) |
+| «que avise si…», «que no deje guardar» | [9](#9-validar-mientras-se-escribe) |
+| «que el servidor lo rechace», «un 400» | [10](#10-validar-en-el-servidor) |
+| «que no se repita» | [9](#9-validar-mientras-se-escribe) y [10](#10-validar-en-el-servidor) |
 
 ## 12. Fallos que quitan puntos
 
-| Síntoma | Causa |
+| Falta… | Síntoma |
 |---|---|
-| El campo sale vacío al editar | Falta en el molde: `cargar` solo copia lo que está en él |
-| Se guarda pero al recargar no está | Falta en el schema de Mongoose: el servidor lo ignora |
-| Se ve en el formulario pero no en la tabla | Falta en `columnas` |
-| Error `400` al guardar un número | `v-model` sin `.number`: llega un texto |
-| Un checkbox guarda `""` | El molde tiene `""` en vez de `false` |
-| El desplegable no muestra la opción guardada | El `:value` de las opciones no coincide con lo guardado (id contra nombre) |
-| El municipio no se vacía al cambiar de provincia | Falta el `watch` sobre `datos.propac` |
-| `datos.campo.value` da error | `datos` es `reactive`: no lleva `.value`; los `ref` sí |
-| Los doctores antiguos salen «Baixa» | Se compara con `!d.activo` en vez de `=== false` |
-| Un `enum` rechaza la opción vacía | La cadena vacía hay que incluirla en la lista del `enum` |
+| El campo en el schema | Se guarda, parece que va, y al recargar **no está** |
+| El campo en el objeto del formulario | Al editar sale vacío |
+| Reiniciar el backend | Nada de lo que tocaste en `backend/` hace efecto |
+| El `<th>` o el `<td>` | La tabla se descuadra |
+| `v-model.number` | Se guarda `"70"` en vez de `70` |
+| Vaciar el municipio en la cascada | Se guarda un municipio de otra provincia |
+| `cargarMunicipios()` al editar | El desplegable de municipio sale vacío |
+| `Boolean(...)` en el `:disabled` | El botón se comporta de forma rara |
+| Dejar fuera el propio registro | «DNI repetido» al editarse a sí mismo |
+| `computed` en el import de `XestionPacientes.vue` | `computed is not defined` |
+| Usar `mensaje` como clave | La alerta enseña el texto genérico |
+| `v-if` en vez de `v-show` en un campo `required` | El formulario no se puede enviar nunca |
+| No sustituir un `reactive` | Si lo sustituyes, la pantalla deja de actualizarse |
 
-## 13. Recetas cortas y lecciones
+## 13. Recetas cortas
 
-- Recetas: [campo nuevo](../funcionalidades/datos/campo-nuevo.md) · [validaciones](../funcionalidades/validacion/validaciones.md) · [horario y fines de semana](../funcionalidades/backend/horario-y-fines-de-semana.md) · [entidad nueva](../funcionalidades/datos/entidad-nueva.md)
-- Guías: [campo nuevo](../guias/campo-nuevo.md) · [validación nueva](../guias/validacion-nueva.md)
-- Lecciones de `diw-study`: `03_lecciones/01_reactividad.md` · `03_lecciones/vue/02_v_model.md` · `03_lecciones/03_crud_api_rest.md`
-
-[← Anterior: listas y filtros](01-listas-filtros-y-busqueda.md) · [Índice](README.md) · [Siguiente: rutas y componentes →](03-rutas-y-componentes.md)
+- [Campo nuevo en un modelo](../funcionalidades/datos/campo-nuevo.md)
+- [Entidad nueva con CRUD completo](../funcionalidades/datos/entidad-nueva.md)
+- [Validaciones](../funcionalidades/validacion/validaciones.md)
+- [Tutor si es menor](../funcionalidades/pequenas-mejoras/tutor-si-es-menor.md)
+- [Teléfono solo números](../funcionalidades/pequenas-mejoras/telefono-solo-numeros.md)
+- [Móvil repetido](../funcionalidades/pequenas-mejoras/movil-repetido.md)
+- [DNI con autocarga](../funcionalidades/como-el-profe/dni-autocarga.md)
+- [Columna calculada: la edad](../funcionalidades/columnas-y-filtros/columna-calculada.md)
+- [Dar de baja a un paciente](../funcionalidades/mejoras-de-la-clinica/dar-de-baja-a-un-paciente.md)
+- [Provincia y municipio en cascada](../funcionalidades/columnas-y-filtros/filtro-municipio-en-cascada.md)
+- [Especialidad y doctor en la cita](../funcionalidades/mejoras-de-la-clinica/especialidad-y-doctor-en-la-cita.md)

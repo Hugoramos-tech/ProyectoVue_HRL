@@ -70,10 +70,10 @@ curl -G localhost:3000/api/pacientes --data-urlencode "q=("   # lista vacía, si
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| Consultas de Mongoose | `find`, `sort`, `skip`, `limit`, `countDocuments`... | `03_lecciones/03_crud_api_rest.md §4` |
-| Router de Express | Rutas agrupadas, y cómo leer `req.query` y `req.params` | `03_lecciones/03_crud_api_rest.md §3` |
+| Concepto | En una línea |
+|---|---|
+| Consultas de Mongoose | `find`, `sort`, `skip`, `limit`, `countDocuments`... |
+| Router de Express | Rutas agrupadas, y cómo leer `req.query` y `req.params` |
 
 ## Guías relacionadas
 

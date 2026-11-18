@@ -88,7 +88,7 @@ En el `<template>`, busca la línea `<div class="citas-cabecera-lista">` y pega 
         </select>
         <select v-model="filtroCuando">
           <option value="">Todas as datas</option>
-          <option value="hoy">Hoxe</option>
+          <option value="hoy">Hoy</option>
           <option value="futuras">Futuras</option>
           <option value="pasadas">Pasadas</option>
         </select>
@@ -168,7 +168,7 @@ Para «entre dos fechas», dos `<input type="date">` con `v-model` a `desde` y `
 
 1. Tres controles encima de «📋 Listado de citas».
 2. Elegir «Cardioloxía» deja solo las citas de doctores de esa especialidad.
-3. «Hoxe» deja las de hoy; «Futuras» las posteriores; «Pasadas» las anteriores.
+3. «Hoy» deja las de hoy; «Futuras» las posteriores; «Pasadas» las anteriores.
 4. La casilla esconde las canceladas. Todo se combina.
 5. Con un filtro que no deja nada, sale «Ningunha cita coincide cos filtros.».
 6. El PDF trae solo lo que ves.
@@ -179,7 +179,7 @@ Para «entre dos fechas», dos `<input type="date">` con `v-model` a `desde` y `
 |---|---|
 | El desplegable de especialidades sale vacío | Los doctores aún no han cargado: esta pantalla solo los pide si hay una selección |
 | Al filtrar por especialidad no queda nada | `especialidadDeCita` compara con `d._id`; en Mongo el campo es `_id`, no `id` |
-| «Hoxe» no deja nada y sí hay citas hoy | El formato de `hoyTexto` no coincide con el de `c.fecha` |
+| «Hoy» no deja nada y sí hay citas hoy | El formato de `hoyTexto` no coincide con el de `c.fecha` |
 | La tabla no cambia | Falta el Paso 4.1 o el 4.2 |
 | Sale «No hay citas cargadas» con filtros puestos | Falta el Paso 5 |
 | `especialidadDeCita is not defined` | El Paso 2 quedó dentro de otra función |

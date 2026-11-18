@@ -70,10 +70,10 @@ Cada cita trae `doctor: { nomedoc, apeldoc, espedoc }`, `paciente: { dnipac, nom
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| `ref` y `populate` | Sustituir una referencia por el documento al que apunta | `03_lecciones/03_crud_api_rest.md §4` |
-| Router de Express | Rutas agrupadas, y cómo leer `req.query` y `req.params` | `03_lecciones/03_crud_api_rest.md §3` |
+| Concepto | En una línea |
+|---|---|
+| `ref` y `populate` | Sustituir una referencia por el documento al que apunta |
+| Router de Express | Rutas agrupadas, y cómo leer `req.query` y `req.params` |
 
 ## Guías relacionadas
 

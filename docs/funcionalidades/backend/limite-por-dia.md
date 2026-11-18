@@ -51,10 +51,10 @@ Para probarlo rápido, pon `MAX_CITAS_DIA = 2`. Las dos primeras citas del día 
 
 ## Conceptos que usa
 
-| Concepto | En una línea | Se explica en (raíz de `diw-study`) |
-|---|---|---|
-| Consultas de Mongoose | `find`, `sort`, `skip`, `limit`, `countDocuments`... | `03_lecciones/03_crud_api_rest.md §4` |
-| REST y códigos de estado | Qué significan 200, 201, 204, 400, 404 y 409 | `03_lecciones/03_crud_api_rest.md §2` |
+| Concepto | En una línea |
+|---|---|
+| Consultas de Mongoose | `find`, `sort`, `skip`, `limit`, `countDocuments`... |
+| REST y códigos de estado | Qué significan 200, 201, 204, 400, 404 y 409 |
 
 ## Guías relacionadas
 

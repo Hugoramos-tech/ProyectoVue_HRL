@@ -90,7 +90,7 @@ En el `<template>`, busca la línea `<th>Especialidade</th>` y pega esto **justo
 
 ```vue
             <th>Citas</th>
-            <th>Hoxe</th>
+            <th>Hoy</th>
             <th>Agora</th>
 ```
 
@@ -131,7 +131,7 @@ Las cabeceras y las filas tienen que tener **el mismo número de elementos**, o 
 
 ## Qué deberías ver
 
-1. Tres columnas nuevas al final de la tabla: «Citas», «Hoxe» y «Agora».
+1. Tres columnas nuevas al final de la tabla: «Citas», «Hoy» y «Agora».
 2. El total cuenta las citas no canceladas de cada doctor.
 3. «Ocupado» en rojo solo si el doctor tiene una cita de hoy que empezó hace menos de 30 minutos. El resto del tiempo, «Libre» en verde.
 

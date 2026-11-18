@@ -1,6 +1,6 @@
 # Citas de hoy en la portada
 
-La portada muestra las citas de hoy con su hora, el paciente y el doctor, ordenadas por hora. Si no hay ninguna, dice «Hoxe non hai citas».
+La portada muestra las citas de hoy con su hora, el paciente y el doctor, ordenadas por hora. Si no hay ninguna, dice «Hoy no hay citas».
 
 **Antes de empezar:** arranca el proyecto (`npm start`). Para verlo necesitas una cita con la fecha de hoy.
 
@@ -11,7 +11,7 @@ En este proyecto las listas **no están en Pinia**: cada pantalla pide sus datos
 ```
 onMounted ──getCitas() + getPacientes() + getDoctores()──▶  tres ref([])
                                                                │
-                                              computed citasHoxe (filtra por fecha)
+                                              computed citasDeHoy (filtra por fecha)
                                                                │
                                                         lista en la portada
 ```
@@ -46,7 +46,7 @@ const hoyTexto = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, 
 
 // Las citas de hoy, ordenadas por hora.
 // [...] copia la lista antes de ordenar, porque sort() modifica el array que recibe.
-const citasHoxe = computed(() =>
+const citasDeHoy = computed(() =>
   [...citas.value]
     .filter((c) => c.fecha === hoyTexto)
     .sort((a, b) => String(a.hora).localeCompare(String(b.hora)))
@@ -100,10 +100,10 @@ En el `<template>`, busca la línea `</main>` y pega esto **justo encima**:
       </h2>
       <!-- v-if / v-else: o el mensaje de "no hay" o la lista, nunca los dos -->
       <p
-        v-if="citasHoxe.length === 0"
+        v-if="citasDeHoy.length === 0"
         class="text-sm text-[#64737a]"
       >
-        Hoxe non hai citas
+        Hoy no hay citas
       </p>
       <ul
         v-else
@@ -111,7 +111,7 @@ En el `<template>`, busca la línea `</main>` y pega esto **justo encima**:
       >
         <!-- Una linea por cita de hoy. :key usa el _id, que es unico. -->
         <li
-          v-for="c in citasHoxe"
+          v-for="c in citasDeHoy"
           :key="c._id"
           class="flex flex-wrap gap-2 border-b border-[#e8f2ec] pb-2 last:border-0"
         >
@@ -138,7 +138,7 @@ Si quieres que desaparezcan las que ya se atendieron, cambia el `filter` del `co
 Cambiando el `computed` tienes «las cinco próximas citas»:
 
 ```js
-const citasHoxe = computed(() =>
+const citasDeHoy = computed(() =>
   [...citas.value]
     // >= en lugar de ===: hoy y todo lo que venga despues
     .filter((c) => c.fecha >= hoyTexto)
@@ -153,7 +153,7 @@ Las fechas son textos `aaaa-mm-dd`, así que `>=` y `localeCompare` las comparan
 ## Qué deberías ver
 
 1. En la portada, debajo de la imagen grande, una sección «Citas de hoxe».
-2. Sin citas hoy: «Hoxe non hai citas».
+2. Sin citas hoy: «Hoy no hay citas».
 3. Crea una cita con la fecha de hoy y vuelve a la portada: aparece con su hora y los dos nombres.
 4. Si hay varias, salen ordenadas por hora.
 
@@ -161,10 +161,10 @@ Las fechas son textos `aaaa-mm-dd`, así que `>=` y `localeCompare` las comparan
 
 | Síntoma | Causa y arreglo |
 |---|---|
-| Siempre «Hoxe non hai citas» | `hoyTexto` no coincide con el formato de `c.fecha`: compáralos con un `console.log` |
+| Siempre «Hoy no hay citas» | `hoyTexto` no coincide con el formato de `c.fecha`: compáralos con un `console.log` |
 | Sale «Paciente no disponible» | La lista de pacientes no cargó, o el DNI de la cita ya no existe en pacientes |
 | Sale «Doctor no disponible» | Falta normalizar `doctorId`: puede llegar como objeto, de ahí el `?._id ??` |
-| `citasHoxe is not defined` | El Paso 1 quedó fuera del `<script setup>` |
+| `citasDeHoy is not defined` | El Paso 1 quedó fuera del `<script setup>` |
 | Error 503 en la consola | MongoDB no está arrancado. La portada se queda sin citas, pero no se rompe |
 | Las horas salen desordenadas | Falta el `.sort(...)` |
 | `nombrePaciente is not defined` | En esta pantalla las funciones llevan «Portada» al final |

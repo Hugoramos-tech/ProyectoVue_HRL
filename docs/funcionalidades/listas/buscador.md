@@ -74,7 +74,7 @@ En el `<template>`, busca el bloque `<div class="cabecera-informe">` y pega esto
 <input
   v-model="busca"
   type="search"
-  placeholder="Buscar por nome ou apelidos"
+  placeholder="Buscar por nombre o apellidos"
   class="mb-4 w-full max-w-sm rounded-lg border border-[#cfe0d6] px-3 py-2"
 >
 ```

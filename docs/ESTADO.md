@@ -1,121 +1,79 @@
-# Estado de la adaptacion a mi proyecto
+# Estado de la wiki
 
-Esta wiki la escribio un companero para SU proyecto. Se esta adaptando al mio
-(HugoRamosLope_VUE). Este indice dice de que ficheros me puedo fiar.
+Esta wiki la escribió un compañero para **su** proyecto. Está adaptada al mío,
+`HugoRamosLope_VUE`: los 85 ficheros de `.md` están revisados y el código que traen se puede
+copiar y pegar en mi proyecto.
+
+## Qué significa «adaptada»
+
+Las recetas dicen cosas como «busca la línea `X` y pega esto justo debajo». Cada una de esas
+líneas se ha comprobado una por una contra `src/` y `backend/` de mi proyecto: existen y son
+únicas. Si una receta nombra un fichero, una función o un campo, es uno que tengo.
+
+Lo que **no** garantiza: que el código pegado haga exactamente lo que yo quiero sin leerlo.
+Las recetas explican lo que hacen, y conviene leer el «Qué deberías ver» antes de dar algo
+por bueno.
 
 ## Diferencias de fondo entre los dos proyectos
 
-| El tenia | Yo tengo |
+Esto es lo que había que traducir en cada fichero. Si alguna vez encuentro un resto sin
+adaptar, es por aquí:
+
+| El compañero tenía | Yo tengo |
 |---|---|
-| `src/views/` | `src/components/` |
-| Componente `<DataTable>` reutilizable | Tablas `<table>` escritas a mano |
-| Componente `<AppButton>` | `<button class="btn-accion">` |
-| La lista vive en Pinia, con `storeToRefs` | La lista es un `ref([])` local del componente |
-| `citaStore` | Las citas son un `ref([])` dentro de `Citas.vue` |
-| `utils/texto.js`, `fechas.js`, `tabla.js` | Funciones sueltas dentro de cada componente |
+| `src/views/` para las pantallas | `src/components/`, todo junto |
+| Componente `<DataTable>` reutilizable | Tablas `<table>` escritas a mano, con `<th>` y `<td>` |
+| Componentes `<AppButton>`, `<FormField>`, `<RowActions>`, `<AppSection>` | `<button>`, `<label>` y `<input>` a pelo, con clases de `style.css` |
+| Las listas en Pinia, con `storeToRefs` | Las listas son un `ref([])` local de cada componente |
+| `citaStore`, `especialidadStore`, `municipioStore` | Solo `pacienteStore` y `doctorStore`, y solo para la **selección** |
+| `useFormulario()` y `useCargaInicial()` en `composables/` | El formulario es un `reactive` en cada componente |
+| `utils/texto.js`, `fechas.js`, `tabla.js`, `errores.js` | Solo `utils/alertas.js` y `utils/pdf.js` |
 | `datosParaPdf(columnas, lista)` | `generarPDF({ titulo, cabeceras, filas, ... })` |
 | Iconos de `lucide-vue-next` | Emojis y SVG escritos a mano |
-| `src/router/routes.js` + menu automatico | Todo en `src/router/index.js`, menu a mano |
+| `src/router/routes.js` y menú automático con `meta.menu` | Todo en `src/router/index.js`, y el menú enlace por enlace en `NavBar.vue` |
+| `obtenerCitas`, `obtenerDoctores`… | `getCitas`, `getDoctores`, `savePaciente`, `modifyDoctor`… |
+| Tokens de color con `@theme` | Colores escritos en las clases: `bg-[#14543a]` |
+| Textos en gallego | Castellano (quedan dos «Non hai … cargados.») |
 
-## Adaptados y comprobados (12)
+## Lo que hay que saber de mi proyecto
 
-Cada linea de "busca esto" esta verificada contra mi codigo real.
+Cinco cosas que explican la mitad de los fallos:
 
-- [x] `funcionalidades/columnas-y-filtros/columna-calculada.md`
-- [x] `funcionalidades/columnas-y-filtros/columna-contador.md`
-- [x] `funcionalidades/columnas-y-filtros/columna-de-otra-tabla.md`
-- [x] `funcionalidades/columnas-y-filtros/combinar.md`
-- [x] `funcionalidades/columnas-y-filtros/contador-de-resultados.md`
-- [x] `funcionalidades/columnas-y-filtros/filtro-citas-especialidad-y-fecha.md`
-- [x] `funcionalidades/columnas-y-filtros/filtro-municipio-en-cascada.md`
-- [x] `funcionalidades/columnas-y-filtros/filtro-pacientes.md`
-- [x] `funcionalidades/columnas-y-filtros/filtro-rango-de-edad.md`
-- [x] `funcionalidades/columnas-y-filtros/ordenar-por-cabecera.md`
-- [x] `funcionalidades/columnas-y-filtros/resaltar-por-valor.md`
-- [x] `funcionalidades/listas/buscador.md`
+1. **El paciente se identifica por su DNI; el doctor, por su `_id`.** Las rutas son
+   `/api/pacientes/:dni` y `/api/doctores/:id`, y las citas guardan `pacienteDNI` y
+   `doctorId`. Confundirlos da `404` o `CastError`.
 
-## Solo rutas y nombres (36)
+2. **Hace falta un `.env`** en la raíz, con `PORT` y `MONGO_URI`. Está en el `.gitignore`, así
+   que no viaja con el repositorio: hay un `.env.example` para copiarlo. Sin él, el servidor
+   arranca igual pero todas las rutas de datos responden **`503`** y las tres pantallas salen
+   vacías.
 
-Se les cambiaron rutas de fichero, URLs y nombres (doutor -> doctor,
-src/views/ -> src/components/, etc.). No usaban piezas que yo no tenga,
-asi que deberian valer, pero no estan revisados paso a paso.
+3. **El backend no recarga solo.** Cualquier cambio en `backend/` necesita Ctrl+C y
+   `npm start`.
 
-- [ ] `README.md`
-- [ ] `backend/api.md`
-- [ ] `backend/mongodb.md`
-- [ ] `backend/validaciones.md`
-- [ ] `comprobar/checklist.md`
-- [ ] `detalle/README.md`
-- [ ] `funcionalidades/backend/busqueda.md`
-- [ ] `funcionalidades/backend/citas-de-un-paciente.md`
-- [ ] `funcionalidades/backend/horario-y-fines-de-semana.md`
-- [ ] `funcionalidades/backend/indice-unico.md`
-- [ ] `funcionalidades/backend/limite-por-dia.md`
-- [ ] `funcionalidades/backend/log-de-peticiones.md`
-- [ ] `funcionalidades/backend/orden.md`
-- [ ] `funcionalidades/backend/paginacion.md`
-- [ ] `funcionalidades/backend/populate-detalle.md`
-- [ ] `funcionalidades/backend/resumen-aggregate.md`
-- [ ] `funcionalidades/como-el-profe/animacion-tarjetas.md`
-- [ ] `funcionalidades/como-el-profe/dni-autocarga.md`
-- [ ] `funcionalidades/datos/campo-nuevo.md`
-- [ ] `funcionalidades/listas/estadisticas.md`
-- [ ] `funcionalidades/mejoras-de-la-clinica/README.md`
-- [ ] `funcionalidades/mejoras-de-la-clinica/especialidad-y-doctor-en-la-cita.md`
-- [ ] `funcionalidades/mejoras-de-la-clinica/paciente-sin-dos-citas-a-la-vez.md`
-- [ ] `funcionalidades/pequenas-mejoras/agenda-por-dias.md`
-- [ ] `funcionalidades/pequenas-mejoras/horario-del-doctor.md`
-- [ ] `funcionalidades/pequenas-mejoras/movil-repetido.md`
-- [ ] `funcionalidades/pequenas-mejoras/telefono-solo-numeros.md`
-- [ ] `funcionalidades/pequenas-mejoras/tutor-si-es-menor.md`
-- [ ] `funcionalidades/si-te-piden.md`
-- [ ] `guias/campo-nuevo.md`
-- [ ] `guias/endpoint-nuevo.md`
-- [ ] `guias/pantalla-nueva.md`
-- [ ] `guias/validacion-nueva.md`
-- [ ] `proyecto/analisis-profe.md`
-- [ ] `proyecto/modelos.md`
-- [ ] `proyecto/paginas.md`
+4. **`XestionPacientes.vue` no importa `computed`.** Solo `ref`, `reactive` y `onMounted`.
 
-## SIN adaptar todavia (36)
+5. **En `Citas.vue` el paciente y el doctor vienen de Pinia**, y sus desplegables están
+   `disabled`: se eligen en sus pantallas.
 
-**Cuidado**: estos todavia explican pasos con piezas que mi proyecto NO tiene
-(`DataTable`, `AppButton`, `citaStore`, `datosParaPdf`...). Si sigo uno de estos
-al pie de la letra, no va a funcionar.
+## Por dónde empezar
 
-- [ ] `comprobar/errores-tipicos.md`
-- [ ] `detalle/01-listas-filtros-y-busqueda.md`
-- [ ] `detalle/02-formularios-y-campos.md`
-- [ ] `detalle/03-rutas-y-componentes.md`
-- [ ] `funcionalidades/README.md`
-- [ ] `funcionalidades/alertas-y-pdf/alertas-extra.md`
-- [ ] `funcionalidades/alertas-y-pdf/aviso-al-borrar.md`
-- [ ] `funcionalidades/alertas-y-pdf/pdf-ficha.md`
-- [ ] `funcionalidades/backend/borrado-en-cascada.md`
-- [ ] `funcionalidades/backend/filtro-en-backend.md`
-- [ ] `funcionalidades/como-el-profe/fecha-en-la-tabla.md`
-- [ ] `funcionalidades/datos/entidad-nueva.md`
-- [ ] `funcionalidades/estilos/color-por-estado.md`
-- [ ] `funcionalidades/listas/estado-desde-la-tabla.md`
-- [ ] `funcionalidades/listas/filtro-en-cliente.md`
-- [ ] `funcionalidades/listas/ordenar-y-paginar.md`
-- [ ] `funcionalidades/mejoras-de-la-clinica/cancelar-con-motivo.md`
-- [ ] `funcionalidades/mejoras-de-la-clinica/dar-de-baja-a-un-paciente.md`
-- [ ] `funcionalidades/mejoras-de-la-clinica/exportar-a-csv.md`
-- [ ] `funcionalidades/mejoras-de-la-clinica/horas-libres.md`
-- [ ] `funcionalidades/mejoras-de-la-clinica/proxima-cita-del-paciente.md`
-- [ ] `funcionalidades/pantallas/componente-props-emit.md`
-- [ ] `funcionalidades/pantallas/ruta-con-parametro.md`
-- [ ] `funcionalidades/pequenas-mejoras/cita-duplicada-antes-de-enviar.md`
-- [ ] `funcionalidades/pequenas-mejoras/citas-por-doctor.md`
-- [ ] `funcionalidades/pequenas-mejoras/confirmar-seleccionadas.md`
-- [ ] `funcionalidades/pequenas-mejoras/contador-y-cumpleanos.md`
-- [ ] `funcionalidades/pequenas-mejoras/reprogramar-cita.md`
-- [ ] `funcionalidades/pequenas-mejoras/saludo-y-reloj.md`
-- [ ] `funcionalidades/pinia/citas-de-hoy.md`
-- [ ] `funcionalidades/pinia/contador-en-el-menu.md`
-- [ ] `funcionalidades/pinia/pinia-seleccion.md`
-- [ ] `funcionalidades/validacion/validaciones.md`
-- [ ] `guias/aspecto.md`
-- [ ] `guias/filtro-nuevo.md`
-- [ ] `proyecto/mapa.md`
+| Quiero… | Voy a |
+|---|---|
+| Buscar la frase del enunciado | [Si te piden esto…](funcionalidades/si-te-piden.md) |
+| Ver la lista completa de recetas | [Funcionalidades](funcionalidades/README.md) |
+| Entender cómo encaja el proyecto | [Mapa del proyecto](proyecto/mapa.md) |
+| Repasar un tema a fondo | [Listas y filtros](detalle/01-listas-filtros-y-busqueda.md) · [Formularios](detalle/02-formularios-y-campos.md) · [Rutas y componentes](detalle/03-rutas-y-componentes.md) |
+| Comprobar que todo arranca | [Checklist](comprobar/checklist.md) |
+| Arreglar algo que falla | [Errores típicos](comprobar/errores-tipicos.md) |
+
+## Qué hay en cada carpeta
+
+| Carpeta | Ficheros | Qué es |
+|---|---|---|
+| `funcionalidades/` | 64 | Las recetas: pasos para copiar y pegar |
+| `guias/` | 6 | Resúmenes cortos por tipo de tarea |
+| `detalle/` | 4 | Apuntes a fondo por tema, con el porqué |
+| `proyecto/` | 4 | Mapa, páginas y análisis del repo del profe |
+| `comprobar/` | 2 | Checklist y errores típicos |
+| `backend/` | 3 | MongoDB, la API y el `.env` |
